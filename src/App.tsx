@@ -4,6 +4,7 @@ import * as api from './api';
 import type { Storekeeper } from './api/types';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage as ConnectPage } from './pages/SetupPage';
+import SmuLoader from './components/SmuLoader';
 
 // Версия приложения кладовщика (также в заголовке вкладки в index.html)
 const APP_VERSION = '0.5.5';
@@ -3576,20 +3577,7 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
   const data = useData();
 
   if (data.loading) {
-    return (
-      <div data-smu-loading className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <img src={LOGO_URL} alt="СМУ" className="w-48 h-48 object-contain mx-auto mb-6 animate-pulse" />
-          <div className="text-slate-800 text-xl font-semibold mb-2">Загрузка данных...</div>
-          <div className="text-slate-500 text-sm">Подключение к Google Sheets</div>
-          <div className="mt-6 flex justify-center gap-1.5">
-            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-3 h-3 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <SmuLoader />;
   }
 
   if (data.error) {
