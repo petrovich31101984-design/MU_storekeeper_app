@@ -3790,14 +3790,6 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
   const getExpenseValue = (empId: string, month: string) => getMonthSheets(empId, month).reduce((s, sheet) => s + sheet.totalAmount, 0);
   const getExpenseCount = (empId: string, month: string) => getMonthSheets(empId, month).length;
 
-  // Итоги в карточках = сумма по строкам таблицы «Сотрудники — общая сводка»
-  const totalArrivalLastMonth = summaryEmployees.reduce((s, e) => s + getArrival(e.id, lastMonth), 0);
-  const totalExpenseLastMonth = summaryEmployees.reduce((s, e) => s + getExpenseValue(e.id, lastMonth), 0);
-  const totalExpenseCountLastMonth = summaryEmployees.reduce((s, e) => s + getExpenseCount(e.id, lastMonth), 0);
-
-  // Остатки на руках = сумма стоимости остатков всех сотрудников
-  const totalBalanceOnHand = summaryEmployees.reduce((s, e) => s + calculateEmployeeValue(e.id), 0);
-  
   // Сотрудники оформляют возвраты со статусом «Ожидает подтверждения» (раньше считались только «Новый»)
   const pendingReturns = returns.filter(gs.isReturnPending).length;
 
@@ -3878,42 +3870,6 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
         <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
           <div className="text-2xl font-bold text-purple-600">{data.nomenclature.filter(n => n.category === 'Оборудование').length}</div>
           <div className="text-xs text-slate-500 uppercase">Оборудования</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Приход за предыдущий месяц */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-          <div className="text-sm italic text-slate-600 mb-2">Приход<br />(за предыдущий месяц)</div>
-          <div className="text-2xl font-bold text-emerald-600 mb-1">{totalArrivalLastMonth.toLocaleString('ru-RU')} ₽</div>
-          <div className="text-xs text-slate-500">
-            {lastMonthDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
-          </div>
-        </div>
-        {/* Расход за предыдущий месяц */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm border-l-4 border-l-red-500">
-          <div className="text-sm italic text-slate-600 mb-2">Расход<br />(за предыдущий месяц)</div>
-          <div className="text-2xl font-bold text-red-600 mb-1">{totalExpenseLastMonth.toLocaleString('ru-RU')} ₽</div>
-          <div className="text-xs text-slate-500">
-            {lastMonthDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
-          </div>
-        </div>
-        {/* Остатки на руках */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm border-l-4 border-l-blue-500 flex flex-col justify-between">
-          <div className="text-sm italic text-slate-600 mb-2">Остатки на руках</div>
-          <div className="flex-1"></div>
-          <div className="text-2xl font-bold text-blue-600 mb-1">{totalBalanceOnHand.toLocaleString('ru-RU')} ₽</div>
-          <div className="text-xs text-slate-500 mt-auto">
-            {now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
-          </div>
-        </div>
-        {/* Листов расхода за предыдущий месяц */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm border-l-4 border-l-orange-500">
-          <div className="text-sm italic text-slate-600 mb-2">Листов расхода<br />(за предыдущий месяц)</div>
-          <div className="text-2xl font-bold text-orange-600 mb-1">{totalExpenseCountLastMonth}</div>
-          <div className="text-xs text-slate-500">
-            {lastMonthDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
-          </div>
         </div>
       </div>
 
