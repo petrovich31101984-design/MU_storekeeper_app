@@ -3744,51 +3744,7 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
   onOpenChat: (employeeId: string) => void;
   onOpenReturns: () => void;
 }) {
-  const { employees, arrivals, expenseSheets, returns } = data;
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  
-  // Предыдущий месяц
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-  
-  // Названия месяцев
-  const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-  const lastMonthName = monthNames[lastMonthDate.getMonth()];
-  const currentMonthName = monthNames[now.getMonth()];
-  
-  // Названия месяцев в именительном падеже для заголовков
-  const lastMonthNameNominative = lastMonthDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-  const currentMonthNameNominative = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-  
-  const activeEmployees = employees.filter(e => e.status === 'Активен');
-
-  // Тот же расчёт и тот же список сотрудников, что и в «Остаток у сотрудника»
-  const { balanceEmployees, getEmployeeIds, calculateEmployeeValue } = createBalanceCalculator(data);
-  const summaryEmployees = [...balanceEmployees].sort((a, b) => {
-    const aNumber = String(a.personalNumber ?? '').trim();
-    const bNumber = String(b.personalNumber ?? '').trim();
-    if (!aNumber && !bNumber) return 0;
-    if (!aNumber) return 1;
-    if (!bNumber) return -1;
-    return aNumber.localeCompare(bNumber, 'ru', { numeric: true });
-  });
-
-  // Расчеты за месяц: архивные записи тоже учитываются (архив только скрывает запись из списка)
-  const belongsTo = (empId: string) => {
-    const ids = getEmployeeIds(empId);
-    return (recordEmployeeId: unknown) => ids.has(normId(recordEmployeeId));
-  };
-  const getArrival = (empId: string, month: string) => {
-    const isEmp = belongsTo(empId);
-    return arrivals.filter(a => isEmp(a.employeeId) && a.month === month).reduce((s, a) => s + a.amount, 0);
-  };
-  const getMonthSheets = (empId: string, month: string) => {
-    const isEmp = belongsTo(empId);
-    return expenseSheets.filter(s => isEmp(s.employeeId) && s.month === month);
-  };
-  const getExpenseValue = (empId: string, month: string) => getMonthSheets(empId, month).reduce((s, sheet) => s + sheet.totalAmount, 0);
-  const getExpenseCount = (empId: string, month: string) => getMonthSheets(empId, month).length;
+  const { employees, expenseSheets, returns } = data;
 
   // Сотрудники оформляют возвраты со статусом «Ожидает подтверждения» (раньше считались только «Новый»)
   const pendingReturns = returns.filter(gs.isReturnPending).length;
@@ -3976,79 +3932,6 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
           <span className="text-orange-600 text-sm font-medium">Открыть →</span>
         </div>
       )}
-
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800">Сотрудники — общая сводка</h3>
-          <div className="text-sm text-slate-600">
-            Активных сотрудников: <span className="font-semibold text-emerald-600">{activeEmployees.length}</span>
-          </div>
-        </div>
-        <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
-          <table className="w-full">
-            <thead className="sticky top-0 bg-slate-50 z-10">
-              <tr className="border-b border-slate-200 text-left bg-slate-50">
-                <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">Сотрудник</th>
-                <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">Статус</th>
-                <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">Приход<br /><span className="text-xs font-normal">({lastMonthNameNominative})</span></th>
-                <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">Расход<br /><span className="text-xs font-normal">({lastMonthNameNominative})</span></th>
-                <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">Остатки на руках</th>
-                <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">Листов расхода<br /><span className="text-xs font-normal">({lastMonthNameNominative})</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {summaryEmployees
-                .map(emp => {
-                  const arr = getArrival(emp.id, lastMonth);
-                  const exp = getExpenseValue(emp.id, lastMonth);
-                  const bal = calculateEmployeeValue(emp.id);
-                  const expenseCount = getExpenseCount(emp.id, lastMonth);
-                  return (
-                  <tr key={emp.id} className="border-b border-slate-100 hover:bg-blue-50 hover:shadow-md transition-all duration-200 cursor-pointer">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-blue-500">
-                          {(emp.fullName || '').split(' ').slice(0, 2).map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-800">{emp.fullName || 'Без имени'}</div>
-                          <div className="text-xs text-slate-500">{emp.position || 'Не указана'}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {/* Статус из листа «Сотрудники» — тот же, что считается в «Активных сотрудников» */}
-                        <span className={`px-2 py-1 rounded-full text-xs ${emp.status === 'Активен' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                          {emp.status || 'Не указан'}
-                        </span>
-                        {emp.blocked && (
-                          <span className="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-700">🔒 Заблокирован</span>
-                        )}
-                        {emp.shiftOpen && (
-                          <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">🟢 На смене</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-sm text-emerald-600">{arr.toLocaleString('ru-RU')} ₽</td>
-                    <td className="px-5 py-3 text-sm text-red-600">{exp.toLocaleString('ru-RU')} ₽</td>
-                    <td className={`px-5 py-3 text-sm font-semibold ${bal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                      {bal.toLocaleString('ru-RU')} ₽
-                    </td>
-                    <td className="px-5 py-3 text-sm text-orange-600">{expenseCount}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {employees.length === 0 && (
-          <div className="p-8 text-center text-slate-500">
-            <div className="text-3xl mb-2">👥</div>
-            <p>Нет данных о сотрудниках</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
