@@ -153,7 +153,7 @@ function useData() {
   };
 }
 
-type Page = 'dashboard' | 'nomenclature' | 'arrival' | 'expense' | 'balance' | 'returns' | 'chat' | 'reports' | 'archive' | 'settings';
+type Page = 'dashboard' | 'nomenclature' | 'arrival' | 'expense' | 'balance' | 'returns' | 'chat' | 'archive' | 'settings';
 
 // Входящие кладовщику: сотрудник пишет адресату «STORE» (вкладка «Кладовщик» в приложении сотрудника)
 // и руководитель пишет кладовщику лично (на его ID сотрудника)
@@ -602,141 +602,6 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
             </>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ ОТЧЁТЫ ============
-function ReportsPage({ data }: { data: ReturnType<typeof useData> }) {
-  const { arrivals, expenseSheets } = data;
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
-
-  // Тот же список сотрудников и расчёт остатков, что в «Остаток у сотрудника» и на панели руководителя
-  const { balanceEmployees, getEmployeeIds, calculateEmployeeValue } = createBalanceCalculator(data);
-
-  // Порядок сотрудников — по персональным номерам из Google таблицы
-  const sortedReportEmployees = [...balanceEmployees].sort((a, b) => {
-    const aNumber = String(a.personalNumber ?? '').trim();
-    const bNumber = String(b.personalNumber ?? '').trim();
-    if (!aNumber && !bNumber) return 0;
-    if (!aNumber) return 1;
-    if (!bNumber) return -1;
-    return aNumber.localeCompare(bNumber, 'ru', { numeric: true });
-  });
-
-  // Приход/расход — за выбранный месяц (архивные тоже: архив только скрывает запись из списка).
-  // Остаток — стоимость остатков на руках на конец выбранного месяца (с начальными остатками и прошлыми месяцами).
-  const reportData = sortedReportEmployees.map(emp => {
-    const ids = getEmployeeIds(emp.id);
-    const isEmp = (employeeId: unknown) => ids.has(normId(employeeId));
-    const monthSheets = expenseSheets.filter(s => isEmp(s.employeeId) && s.month === selectedMonth);
-    const expenseSheetsCount = monthSheets.length;
-    const arrival = arrivals.filter(a => isEmp(a.employeeId) && a.month === selectedMonth).reduce((s, a) => s + a.amount, 0);
-    const expense = monthSheets.reduce((s, sheet) => s + sheet.totalAmount, 0);
-    return { emp, expenseSheetsCount, arrival, expense, balance: calculateEmployeeValue(emp.id, selectedMonth) };
-  });
-
-  const totals = {
-    expenseSheetsCount: reportData.reduce((s, r) => s + r.expenseSheetsCount, 0),
-    arrival: reportData.reduce((s, r) => s + r.arrival, 0),
-    expense: reportData.reduce((s, r) => s + r.expense, 0),
-    balance: reportData.reduce((s, r) => s + r.balance, 0),
-  };
-
-  // Форматирование даты в ММ.ГГ
-  const formatMonthYear = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    return `${month}.${year.slice(-2)}`;
-  };
-
-  const exportCSV = () => {
-    const headers = ['№', 'ФИО', 'Должность', 'Приход (₽)', 'Расход (₽)', 'Остаток на конец месяца (₽)', 'Листы расхода'];
-    const rows = reportData.map(r => [String(r.emp.personalNumber ?? '').trim(), r.emp.fullName, r.emp.position, r.arrival, r.expense, r.balance, r.expenseSheetsCount]);
-    const csv = [headers, ...rows].map(row => row.join(';')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `Отчет_${selectedMonth}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Отчёты</h2>
-          <p className="text-slate-500 text-sm mt-1">Ежемесячные отчёты</p>
-        </div>
-        <button onClick={exportCSV} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white text-sm font-medium shadow-sm">📊 Экспорт CSV</button>
-      </div>
-
-      <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
-        className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:border-blue-500 shadow-sm" />
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <div className="text-xs text-slate-500">Приход</div>
-          <div className="text-xl font-bold text-emerald-600 mt-1">{totals.arrival.toLocaleString('ru-RU')} ₽</div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <div className="text-xs text-slate-500">Расход</div>
-          <div className="text-xl font-bold text-red-600 mt-1">{totals.expense.toLocaleString('ru-RU')} ₽</div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <div className="text-xs text-slate-500">Остаток на конец месяца</div>
-          <div className="text-xl font-bold text-blue-600 mt-1">{totals.balance.toLocaleString('ru-RU')} ₽</div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <div className="text-xs text-slate-500">Листов расхода</div>
-          <div className="text-xl font-bold text-orange-600 mt-1">{totals.expenseSheetsCount}</div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-slate-200 bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-800">📋 Отчёт за {formatMonthYear(selectedMonth)}</h3>
-        </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-200 text-left bg-slate-50">
-              <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">№</th>
-              <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase">ФИО</th>
-              <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase text-right">Приход</th>
-              <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase text-right">Расход</th>
-              <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase text-right">Остаток на конец месяца</th>
-              <th className="px-5 py-3 text-xs font-medium text-slate-600 uppercase text-right">Листы расхода</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reportData.map(row => (
-              <tr key={row.emp.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-5 py-3 text-sm text-slate-500">{String(row.emp.personalNumber ?? '').trim() || '—'}</td>
-                <td className="px-5 py-3">
-                  <div className="text-sm font-medium text-slate-800">{row.emp.fullName}</div>
-                  <div className="text-xs text-slate-500">{row.emp.position}</div>
-                </td>
-                <td className="px-5 py-3 text-right text-sm text-emerald-600">{row.arrival.toLocaleString('ru-RU')} ₽</td>
-                <td className="px-5 py-3 text-right text-sm text-red-600">{row.expense.toLocaleString('ru-RU')} ₽</td>
-                <td className="px-5 py-3 text-right text-sm font-semibold text-blue-600">
-                  {row.balance.toLocaleString('ru-RU')} ₽
-                </td>
-                <td className="px-5 py-3 text-right text-sm text-orange-600">{row.expenseSheetsCount}</td>
-              </tr>
-            ))}
-            <tr className="bg-slate-50 font-bold">
-              <td className="px-5 py-3" colSpan={2}><span className="text-sm text-slate-800">ИТОГО</span></td>
-              <td className="px-5 py-3 text-right text-sm text-emerald-600">{totals.arrival.toLocaleString('ru-RU')} ₽</td>
-              <td className="px-5 py-3 text-right text-sm text-red-600">{totals.expense.toLocaleString('ru-RU')} ₽</td>
-              <td className="px-5 py-3 text-right text-sm font-semibold text-blue-600">
-                {totals.balance.toLocaleString('ru-RU')} ₽
-              </td>
-              <td className="px-5 py-3 text-right text-sm text-orange-600">{totals.expenseSheetsCount}</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   );
@@ -3442,7 +3307,6 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
     { id: 'balance', label: 'Остаток у сотрудника', icon: '🧰' },
     { id: 'returns', label: 'Возвраты', icon: '↩️' },
     { id: 'chat', label: 'Сообщения', icon: '💬' },
-    { id: 'reports', label: 'Отчёты', icon: '📈' },
     { id: 'archive', label: 'Архив', icon: '🗄️' },
     { id: 'settings', label: 'Настройки', icon: '⚙️' },
   ];
@@ -3457,7 +3321,6 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
       case 'returns': return <ReturnsPage data={data} />;
       case 'archive': return <ArchivePage data={data} />;
       case 'chat': return <ChatPage data={data} focusEmployeeId={focusChatEmployeeId} onFocusHandled={() => setFocusChatEmployeeId(null)} />;
-      case 'reports': return <ReportsPage data={data} />;
       case 'settings': return <SettingsPage user={user} onLogout={onLogout} onChangeConnection={onChangeConnection} />;
     }
   };
