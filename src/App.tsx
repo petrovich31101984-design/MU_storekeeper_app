@@ -345,7 +345,7 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
   focusEmployeeId?: string | null;
   onFocusHandled?: () => void;
 }) {
-  const { chatMessages, employees, announcements } = data;
+  const { chatMessages, employees } = data;
 
   // Сотрудники: без уволенных и без самого кладовщика
   const activeEmployees = employees.filter(e => e.status !== 'Уволен' && e.id !== gs.actor.id);
@@ -457,9 +457,6 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
   };
 
   const managerUnread = chatMessages.filter(m => isUnreadFrom(m, MANAGER_CHAT)).length;
-  const warehouseAnnouncements = announcements
-    .filter(a => a.active && isForWarehouse(a))
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
   // Форматирование даты в ЧЧ:ММ, ДД.ММ.ГГ
   const formatDateTime = (dateStr: string) => {
@@ -485,9 +482,6 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
         <h2 className="text-2xl font-bold text-slate-800">Сообщения</h2>
         <p className="text-slate-500 text-sm mt-1">Чат с руководителем и сотрудниками</p>
       </div>
-
-      {/* Объявления руководителя для склада — только просмотр */}
-      <AnnouncementsPanel announcements={warehouseAnnouncements} />
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex h-[600px] shadow-sm">
         <div className="w-80 border-r border-slate-200 flex flex-col">
@@ -1043,7 +1037,7 @@ function AnnouncementsPanel({ announcements }: { announcements: gs.Announcement[
   if (announcements.length === 0) return null;
 
   return (
-    <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-4">
+    <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
       <h3 className="text-lg font-bold text-yellow-800 mb-3 flex items-center gap-2">
         📢 Объявления руководителя
       </h3>
@@ -3877,8 +3871,15 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
     });
   };
 
+  // Объявления руководителя для склада — только просмотр, новые сверху
+  const warehouseAnnouncements = data.announcements
+    .filter(a => a.active && isForWarehouse(a))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
   return (
     <div className="space-y-6">
+      <AnnouncementsPanel announcements={warehouseAnnouncements} />
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Приход за предыдущий месяц */}
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
