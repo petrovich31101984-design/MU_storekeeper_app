@@ -1897,7 +1897,7 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
 
       {/* Блок 2: Таблица остатков */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-w-full flex-1 min-h-0 flex flex-col">
-        <div className="overflow-auto max-w-full flex-1 min-h-0 overscroll-contain">
+        <div className="balance-scroll overflow-auto max-w-full flex-1 min-h-0 overscroll-contain">
           <table className="border-collapse bg-white" style={{ borderSpacing: 0 }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-slate-100">
