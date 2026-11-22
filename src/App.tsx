@@ -6,7 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { SetupPage as ConnectPage } from './pages/SetupPage';
 
 // Версия приложения кладовщика (также в заголовке вкладки в index.html)
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '0.5.5';
 const APP_SUBTITLE = `Система медицинского учёта (к) v. ${APP_VERSION}`;
 const SESSION_KEY = 'storekeeperSession';
 
@@ -178,7 +178,7 @@ function ConnectionErrorScreen({ error, onRetry }: { error: string; onRetry: () 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-8 border border-red-200 shadow-lg max-w-lg w-full">
-        <img src={LOGO_URL} alt="АлкоСпас" className="w-32 h-32 object-contain mx-auto mb-4" />
+        <img src={LOGO_URL} alt="СМУ" className="w-32 h-32 object-contain mx-auto mb-4" />
         <h2 className="text-xl font-bold text-slate-800 text-center mb-2">Ошибка подключения</h2>
         <p className="text-red-600 text-sm text-center mb-4">{error}</p>
         
@@ -3579,7 +3579,7 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <img src={LOGO_URL} alt="АлкоСпас" className="w-48 h-48 object-contain mx-auto mb-6 animate-pulse" />
+          <img src={LOGO_URL} alt="СМУ" className="w-48 h-48 object-contain mx-auto mb-6 animate-pulse" />
           <div className="text-slate-800 text-xl font-semibold mb-2">Загрузка данных...</div>
           <div className="text-slate-500 text-sm">Подключение к Google Sheets</div>
           <div className="mt-6 flex justify-center gap-1.5">
@@ -3633,10 +3633,10 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'w-80' : 'w-20'} bg-white border-r border-slate-200 flex flex-col transition-all duration-300 fixed h-full z-40 shadow-sm`}>
         <div className="p-4 border-b border-slate-200 flex items-center gap-3">
-          <img src={LOGO_URL} alt="АлкоСпас" className="w-10 h-10 rounded-lg object-contain shrink-0" />
+          <img src={LOGO_URL} alt="СМУ" className="w-10 h-10 rounded-lg object-contain shrink-0" />
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <h1 className="text-sm font-bold whitespace-nowrap"><span className="text-blue-600">Алко</span><span className="text-red-600">Спас</span></h1>
+              <h1 className="text-sm font-bold whitespace-nowrap"><span className="text-blue-600">СМУ</span></h1>
               <p className="text-xs text-slate-500 leading-tight">{APP_SUBTITLE}</p>
             </div>
           )}
