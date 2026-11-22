@@ -145,8 +145,9 @@ function useData() {
 type Page = 'dashboard' | 'nomenclature' | 'arrival' | 'expense' | 'balance' | 'returns' | 'chat' | 'reports' | 'archive' | 'settings';
 
 // Входящие кладовщику: сотрудник пишет адресату «STORE» (вкладка «Кладовщик» в приложении сотрудника)
+// и руководитель пишет кладовщику лично (на его ID сотрудника)
 const isIncomingUnreadMessage = (msg: gs.ChatMessage) =>
-  !msg.read && msg.toId === gs.STORE_CHAT_ID;
+  !msg.read && (msg.toId === gs.STORE_CHAT_ID || (msg.fromId === 'MGR' && !!gs.actor.id && msg.toId === gs.actor.id));
 
 // Placeholder components - will be defined later
 
@@ -302,18 +303,43 @@ function SettingsPage({ user, onLogout, onChangeConnection }: { user: Storekeepe
 
 
 // ============ ЧАТ ============
+// Кладовщик переписывается:
+//  • с сотрудниками — от имени «STORE» (вкладка «Кладовщик» в приложении сотрудника);
+//  • с руководителем — от своего ID сотрудника: руководитель видит этот диалог
+//    в своём списке сотрудников, как переписку с обычным сотрудником.
+// Объявления кладовщик не создаёт — только читает объявления руководителя для склада.
+const MANAGER_CHAT = 'MGR';
+
+/** Сообщение относится к диалогу кладовщика с собеседником chatId */
+const inStorekeeperDialog = (m: gs.ChatMessage, chatId: string) =>
+  chatId === MANAGER_CHAT
+    ? (m.fromId === gs.actor.id && m.toId === MANAGER_CHAT) || (m.fromId === MANAGER_CHAT && m.toId === gs.actor.id)
+    : (m.fromId === chatId && m.toId === gs.STORE_CHAT_ID) || (m.fromId === gs.STORE_CHAT_ID && m.toId === chatId);
+
+/** Входящее непрочитанное от собеседника chatId */
+const isUnreadFrom = (m: gs.ChatMessage, chatId: string) =>
+  !m.read && (chatId === MANAGER_CHAT
+    ? m.fromId === MANAGER_CHAT && m.toId === gs.actor.id
+    : m.fromId === chatId && m.toId === gs.STORE_CHAT_ID);
+
+/** Объявление адресовано складу: получатель «warehouse» (или получатели не указаны — для всех) */
+const isForWarehouse = (a: gs.Announcement) => {
+  const recipients = a.recipients.map(r => r.trim()).filter(Boolean);
+  return recipients.length === 0 || recipients.includes('warehouse') || recipients.includes('all');
+};
+
 function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
   data: ReturnType<typeof useData>;
   focusEmployeeId?: string | null;
   onFocusHandled?: () => void;
 }) {
   const { chatMessages, employees, announcements } = data;
-  
-  // Фильтруем сотрудников: исключаем уволенных
-  const activeEmployees = employees.filter(e => e.status !== 'Уволен');
+
+  // Сотрудники: без уволенных и без самого кладовщика
+  const activeEmployees = employees.filter(e => e.status !== 'Уволен' && e.id !== gs.actor.id);
   const sortedActiveEmployees = [...activeEmployees].sort((a, b) => {
-    const aUnread = chatMessages.some(message => message.fromId === a.id && message.toId === gs.STORE_CHAT_ID && !message.read) ? 0 : 1;
-    const bUnread = chatMessages.some(message => message.fromId === b.id && message.toId === gs.STORE_CHAT_ID && !message.read) ? 0 : 1;
+    const aUnread = chatMessages.some(m => isUnreadFrom(m, a.id)) ? 0 : 1;
+    const bUnread = chatMessages.some(m => isUnreadFrom(m, b.id)) ? 0 : 1;
     if (aUnread !== bUnread) return aUnread - bUnread;
     const aNumber = String(a.personalNumber ?? '').trim();
     const bNumber = String(b.personalNumber ?? '').trim();
@@ -322,13 +348,13 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
     if (!bNumber) return -1;
     return aNumber.localeCompare(bNumber, 'ru', { numeric: true });
   });
-  
+
   const [selectedChat, setSelectedChat] = useState<string>('');
 
-  // Помечаем все сообщения от сотрудника как прочитанные (при открытии диалога)
-  const markEmployeeMessagesRead = (employeeId: string) => {
+  // Помечаем входящие сообщения собеседника как прочитанные (при открытии диалога)
+  const markDialogRead = (chatId: string) => {
     const updatedMessages = chatMessages.map(m => {
-      if (m.fromId === employeeId && m.toId === gs.STORE_CHAT_ID && !m.read) {
+      if (isUnreadFrom(m, chatId)) {
         gs.updateChatMessage(m.id, { read: true }).catch(err => {
           console.error('Ошибка обновления статуса сообщения:', err);
         });
@@ -339,26 +365,23 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
     data.setChatMessages(updatedMessages);
   };
 
-  // Переход из блока «Сообщения» на панели руководителя: сразу открываем диалог с сотрудником
+  // Переход из блока «Сообщения» на панели: сразу открываем диалог
   useEffect(() => {
     if (!focusEmployeeId) return;
     setSelectedChat(focusEmployeeId);
-    markEmployeeMessagesRead(focusEmployeeId);
+    markDialogRead(focusEmployeeId);
     onFocusHandled?.();
   }, [focusEmployeeId]);
 
   const [newMessage, setNewMessage] = useState('');
-  const [showCreateAnnouncement, setShowCreateAnnouncement] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<gs.Announcement | null>(null);
 
   // Функция для форматирования ФИО в формате "Фамилия И.О."
   const formatFullName = (fullName: string) => {
     const parts = fullName.trim().split(' ');
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
-    
-    const lastName = parts[0]; // Фамилия полностью
-    const initials = parts.slice(1).map(p => p[0] + '.').join(''); // И.О.
+    const lastName = parts[0];
+    const initials = parts.slice(1).map(p => p[0] + '.').join('');
     return `${lastName} ${initials}`;
   };
 
@@ -370,124 +393,84 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
     return { text: 'Не активен', color: 'bg-slate-100 text-slate-700' };
   };
 
-  // Более гибкий фильтр: проверяем разные варианты ID руководителя
-  // Переписка кладовщика: сообщения от/для «STORE» (переписка сотрудника с руководителем сюда не попадает)
-  const isManagerId = (id: string) => id === gs.STORE_CHAT_ID;
-
-  const chatWith = chatMessages.filter(m =>
-    (m.fromId === selectedChat && isManagerId(m.toId)) || (isManagerId(m.fromId) && m.toId === selectedChat)
-  ).sort((a, b) => a.date.localeCompare(b.date));
-
+  const isManagerChat = selectedChat === MANAGER_CHAT;
+  const selectedEmployee = activeEmployees.find(e => e.id === selectedChat);
+  const chatWith = chatMessages
+    .filter(m => selectedChat && inStorekeeperDialog(m, selectedChat))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const isMine = (m: gs.ChatMessage) => m.fromId === gs.STORE_CHAT_ID || m.fromId === gs.actor.id;
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return;
-    const emp = activeEmployees.find(e => e.id === selectedChat);
-    
-    const newMsg = {
-      id: `MSG-${Date.now()}`, 
-      fromId: gs.STORE_CHAT_ID, 
-      fromName: gs.STORE_CHAT_NAME,
-      toId: selectedChat, 
-      toName: emp?.fullName || '',
-      role: 'Кладовщик', 
-      text: newMessage, 
-      date: new Date().toISOString(),
-      read: false,
-      priority: 'Обычное',
-    };
-    
-    // Добавляем сообщение в локальный state
+    if (!isManagerChat && !selectedEmployee) return;
+
+    const newMsg = isManagerChat
+      ? {
+          id: `MSG-${Date.now()}`,
+          fromId: gs.actor.id,
+          fromName: gs.actor.fullName,
+          toId: MANAGER_CHAT,
+          toName: 'Руководитель',
+          role: 'Кладовщик',
+          text: newMessage,
+          date: new Date().toISOString(),
+          read: false,
+          priority: 'Обычное',
+        }
+      : {
+          id: `MSG-${Date.now()}`,
+          fromId: gs.STORE_CHAT_ID,
+          fromName: gs.STORE_CHAT_NAME,
+          toId: selectedChat,
+          toName: selectedEmployee?.fullName || '',
+          role: 'Кладовщик',
+          text: newMessage,
+          date: new Date().toISOString(),
+          read: false,
+          priority: 'Обычное',
+        };
+
     data.setChatMessages([...data.chatMessages, newMsg]);
     setNewMessage('');
-    
-    // Отправляем в Google Sheets в фоне (без ожидания)
+
     gs.addChatMessage(newMsg).catch(err => {
       console.error('Ошибка отправки сообщения:', err);
       alert('Ошибка при отправке сообщения. Попробуйте ещё раз.');
     });
   };
 
-  const handleCreateAnnouncement = async (announcement: { title: string; text: string; recipients: string[] }) => {
-    try {
-      const id = `ANN-${Date.now()}`;
-      await gs.createAnnouncement({ id, ...announcement });
-      logAction(data, 'Объявления', id, 'Создание', { newValue: announcement.title });
-      setShowCreateAnnouncement(false);
-      // Локальное обновление без перезагрузки
-      const newAnnouncement: gs.Announcement = {
-        id,
-        title: announcement.title,
-        text: announcement.text,
-        recipients: announcement.recipients,
-        createdBy: gs.actorLabel(),
-        date: new Date().toISOString(),
-        active: true,
-      };
-      data.setAnnouncements([...data.announcements, newAnnouncement]);
-    } catch (error) {
-      console.error('Ошибка создания объявления:', error);
-    }
+  const managerUnread = chatMessages.filter(m => isUnreadFrom(m, MANAGER_CHAT)).length;
+  const warehouseAnnouncements = announcements
+    .filter(a => a.active && isForWarehouse(a))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  // Форматирование даты в ЧЧ:ММ, ДД.ММ.ГГ
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}, ${day}.${month}.${year}`;
   };
 
-  const handleEditAnnouncement = async (announcement: gs.Announcement) => {
-    setEditingAnnouncement(announcement);
-  };
-
-  const handleUpdateAnnouncement = async (id: string, updates: Partial<gs.Announcement>) => {
-    try {
-      await gs.updateAnnouncement(id, updates);
-      logAction(data, 'Объявления', id, 'Изменение', { newValue: updates.title ?? (updates.active === undefined ? '' : updates.active ? 'Активно' : 'Неактивно') });
-      setEditingAnnouncement(null);
-      // Локальное обновление без перезагрузки
-      data.setAnnouncements(
-        data.announcements.map(a => a.id === id ? { ...a, ...updates } : a)
-      );
-    } catch (error) {
-      console.error('Ошибка обновления объявления:', error);
-    }
-  };
-
-  const handleDeleteAnnouncement = async (id: string) => {
-    if (!id) {
-      console.error('❌ ID объявления пустой!');
-      alert('Ошибка: ID объявления не найден');
-      return;
-    }
-    if (!confirm('Удалить это объявление?')) {
-      return;
-    }
-    try {
-      await gs.deleteAnnouncement(id);
-      logAction(data, 'Объявления', id, 'Удаление');
-      // Локальное обновление без перезагрузки
-      data.setAnnouncements(data.announcements.filter(a => a.id !== id));
-    } catch (error) {
-      console.error('❌ Ошибка удаления объявления:', error);
-      alert('Ошибка при удалении объявления: ' + (error as Error).message);
-    }
+  const openDialog = (chatId: string) => {
+    setSelectedChat(selectedChat === chatId ? '' : chatId);
+    if (selectedChat !== chatId) markDialogRead(chatId);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Сообщения</h2>
-          <p className="text-slate-500 text-sm mt-1">Чат с сотрудниками</p>
-        </div>
-        <button
-          onClick={() => setShowCreateAnnouncement(true)}
-          className="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-white text-sm font-medium shadow-sm"
-        >
-          📢 СОЗДАТЬ ОБЪЯВЛЕНИЕ
-        </button>
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800">Сообщения</h2>
+        <p className="text-slate-500 text-sm mt-1">Чат с руководителем и сотрудниками</p>
       </div>
 
-      {/* Панель объявлений */}
-      <AnnouncementsPanel 
-        announcements={announcements}
-        onEdit={handleEditAnnouncement}
-        onDelete={handleDeleteAnnouncement}
-      />
+      {/* Объявления руководителя для склада — только просмотр */}
+      <AnnouncementsPanel announcements={warehouseAnnouncements} />
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex h-[600px] shadow-sm">
         <div className="w-80 border-r border-slate-200 flex flex-col">
@@ -495,25 +478,30 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
             <h3 className="font-bold text-slate-800 text-sm">Диалоги</h3>
           </div>
           <div className="flex-1 overflow-y-auto">
+            {/* Руководитель — всегда первым */}
+            <button onClick={() => openDialog(MANAGER_CHAT)}
+              className={`w-full p-4 flex items-center gap-3 text-left border-b border-slate-200 ${
+                isManagerChat ? 'bg-red-50 border-l-4 border-l-red-500' : 'bg-blue-50/40 hover:bg-slate-50'
+              }`}>
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-lg text-white">👔</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-slate-800">Руководитель</div>
+                  {managerUnread > 0 && (
+                    <div className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 ml-2">
+                      {managerUnread}
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">Личный диалог</div>
+              </div>
+            </button>
+
             {sortedActiveEmployees.map(emp => {
               const status = getEmployeeStatus(emp);
-              // Подсчёт непрочитанных сообщений от этого сотрудника
-              const unreadCount = chatMessages.filter(m =>
-                m.fromId === emp.id && m.toId === gs.STORE_CHAT_ID && !m.read
-              ).length;
-
-              // Функция открытия диалога с обнулением счётчика
-              const handleOpenChat = () => {
-                setSelectedChat(selectedChat === emp.id ? '' : emp.id);
-
-                // Помечаем все сообщения от этого сотрудника как прочитанные
-                if (selectedChat !== emp.id) {
-                  markEmployeeMessagesRead(emp.id);
-                }
-              };
-              
+              const unreadCount = chatMessages.filter(m => isUnreadFrom(m, emp.id)).length;
               return (
-                <button key={emp.id} onClick={handleOpenChat}
+                <button key={emp.id} onClick={() => openDialog(emp.id)}
                   className={`w-full p-4 flex items-center gap-3 text-left border-b border-slate-100 ${
                     selectedChat === emp.id ? 'bg-red-50 border-l-4 border-l-red-500' : 'hover:bg-slate-50'
                   }`}>
@@ -546,21 +534,31 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
             <div className="flex-1 flex items-center justify-center bg-slate-50">
               <div className="text-center text-slate-500">
                 <div className="text-6xl mb-4">💬</div>
-                <p className="text-lg font-medium">Выберите сотрудника для начала диалога</p>
+                <p className="text-lg font-medium">Выберите руководителя или сотрудника</p>
               </div>
             </div>
           ) : (
             <>
               <div className="p-4 border-b border-slate-200 flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
-                  {activeEmployees.find(e => e.id === selectedChat)?.fullName[0] || '?'}
-                </div>
-                <div>
-                  <div className="font-medium text-slate-800">
-                    {activeEmployees.find(e => e.id === selectedChat) ? formatFullName(activeEmployees.find(e => e.id === selectedChat)!.fullName) : ''}
-                  </div>
-                  <div className="text-xs text-slate-500">{activeEmployees.find(e => e.id === selectedChat)?.position}</div>
-                </div>
+                {isManagerChat ? (
+                  <>
+                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-lg text-white">👔</div>
+                    <div>
+                      <div className="font-medium text-slate-800">Руководитель</div>
+                      <div className="text-xs text-slate-500">Личный диалог</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
+                      {selectedEmployee?.fullName[0] || '?'}
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-800">{selectedEmployee ? formatFullName(selectedEmployee.fullName) : ''}</div>
+                      <div className="text-xs text-slate-500">{selectedEmployee?.position}</div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
@@ -568,34 +566,16 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
                   <div className="text-center text-slate-500 mt-8">
                     <div className="text-4xl mb-2">💬</div><p>Нет сообщений</p>
                   </div>
-                ) : chatWith.map(msg => {
-                  // Форматирование даты в ЧЧ.ММ, ДД.ММ.ГГ
-                  const formatDateTime = (dateStr: string) => {
-                    if (!dateStr) return '';
-                    try {
-                      const date = new Date(dateStr);
-                      const day = String(date.getDate()).padStart(2, '0');
-                      const month = String(date.getMonth() + 1).padStart(2, '0');
-                      const year = String(date.getFullYear()).slice(-2);
-                      const hours = String(date.getHours()).padStart(2, '0');
-                      const minutes = String(date.getMinutes()).padStart(2, '0');
-                      return `${hours}:${minutes}, ${day}.${month}.${year}`;
-                    } catch {
-                      return dateStr;
-                    }
-                  };
-                  
-                  return (
-                    <div key={msg.id} className={`flex ${msg.fromId === gs.STORE_CHAT_ID ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                        msg.fromId === gs.STORE_CHAT_ID ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'
-                      }`}>
-                        <p className="text-sm">{msg.text}</p>
-                        <div className={`text-xs mt-1 italic ${msg.fromId === gs.STORE_CHAT_ID ? 'text-blue-100' : 'text-blue-600'}`}>{formatDateTime(msg.date)}</div>
-                      </div>
+                ) : chatWith.map(msg => (
+                  <div key={msg.id} className={`flex ${isMine(msg) ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
+                      isMine(msg) ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'
+                    }`}>
+                      <p className="text-sm">{msg.text}</p>
+                      <div className={`text-xs mt-1 italic ${isMine(msg) ? 'text-blue-100' : 'text-blue-600'}`}>{formatDateTime(msg.date)}</div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
 
               <div className="p-4 border-t border-slate-200">
@@ -612,21 +592,6 @@ function ChatPage({ data, focusEmployeeId, onFocusHandled }: {
           )}
         </div>
       </div>
-
-      {showCreateAnnouncement && (
-        <CreateAnnouncementModal
-          onClose={() => setShowCreateAnnouncement(false)}
-          onCreate={handleCreateAnnouncement}
-        />
-      )}
-
-      {editingAnnouncement && (
-        <EditAnnouncementModal
-          announcement={editingAnnouncement}
-          onClose={() => setEditingAnnouncement(null)}
-          onUpdate={handleUpdateAnnouncement}
-        />
-      )}
     </div>
   );
 }
@@ -1056,252 +1021,28 @@ function ArrivalCardModal({
   );
 }
 
-// ============ КОМПОНЕНТ ОТОБРАЖЕНИЯ ОБЪЯВЛЕНИЙ ============
-function AnnouncementsPanel({ announcements, onEdit, onDelete }: { 
-  announcements: gs.Announcement[];
-  onEdit: (announcement: gs.Announcement) => void;
-  onDelete: (id: string) => void;
-}) {
-  const activeAnnouncements = announcements.filter(a => a.active);
-  
-  
-  if (activeAnnouncements.length === 0) return null;
-
-  // Показываем только последнее объявление
-  const latestAnnouncement = activeAnnouncements[activeAnnouncements.length - 1];
+// ============ ОБЪЯВЛЕНИЯ РУКОВОДИТЕЛЯ (только просмотр) ============
+function AnnouncementsPanel({ announcements }: { announcements: gs.Announcement[] }) {
+  if (announcements.length === 0) return null;
 
   return (
     <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-4">
       <h3 className="text-lg font-bold text-yellow-800 mb-3 flex items-center gap-2">
-        📢 Последнее объявление
+        📢 Объявления руководителя
       </h3>
-      <div className="bg-white rounded-lg p-4 border border-yellow-200">
-        <div className="flex justify-between items-start mb-2">
-          <h4 className="font-semibold text-slate-800 flex-1">{latestAnnouncement.title}</h4>
-          <div className="flex items-center gap-2 ml-2">
-            <button
-              onClick={() => onEdit(latestAnnouncement)}
-              className="text-blue-600 hover:text-blue-800 text-sm"
-              title="Редактировать"
-            >
-              ✏️
-            </button>
-            <button
-              onClick={() => {
-                onDelete(latestAnnouncement.id);
-              }}
-              className="text-red-600 hover:text-red-800 text-sm"
-              title="Удалить"
-            >
-              🗑️
-            </button>
-            <span className="text-xs text-slate-500">
-              {new Date(latestAnnouncement.date).toLocaleDateString('ru-RU')}
-            </span>
-          </div>
-        </div>
-        <p className="text-sm text-slate-700 whitespace-pre-wrap">{latestAnnouncement.text}</p>
-        <div className="mt-2 text-xs text-slate-500">
-          От: {latestAnnouncement.createdBy}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ОБЪЯВЛЕНИЯ ============
-function CreateAnnouncementModal({
-  onClose,
-  onCreate
-}: {
-  onClose: () => void;
-  onCreate: (announcement: { title: string; text: string; recipients: string[] }) => void;
-}) {
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
-  const [recipients, setRecipients] = useState<string[]>(['employees', 'warehouse']);
-
-  const handleSubmit = () => {
-    if (!title.trim() || !text.trim()) {
-      alert('Заполните заголовок и текст объявления');
-      return;
-    }
-    onCreate({ title, text, recipients });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-2xl shadow-2xl">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-bold text-slate-800">📢 Создать объявление</h3>
-        </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="text-sm text-slate-600 mb-1 block">Заголовок *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Введите заголовок объявления"
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600 mb-1 block">Текст объявления *</label>
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Введите текст объявления"
-              rows={6}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600 mb-2 block">Получатели</label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={recipients.includes('employees')}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      setRecipients([...recipients, 'employees']);
-                    } else {
-                      setRecipients(recipients.filter(r => r !== 'employees'));
-                    }
-                  }}
-                  className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-slate-700">Сотрудники</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={recipients.includes('warehouse')}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      setRecipients([...recipients, 'warehouse']);
-                    } else {
-                      setRecipients(recipients.filter(r => r !== 'warehouse'));
-                    }
-                  }}
-                  className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-slate-700">Кладовщик</span>
-              </label>
+      <div className="space-y-3 max-h-72 overflow-y-auto">
+        {announcements.map(a => (
+          <div key={a.id} className="bg-white rounded-lg p-4 border border-yellow-200">
+            <div className="flex justify-between items-start mb-2 gap-2">
+              <h4 className="font-semibold text-slate-800 flex-1">{a.title}</h4>
+              <span className="text-xs text-slate-500 whitespace-nowrap">
+                {a.date && !isNaN(new Date(a.date).getTime()) ? new Date(a.date).toLocaleDateString('ru-RU') : ''}
+              </span>
             </div>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap">{a.text}</p>
+            {a.createdBy && <div className="mt-2 text-xs text-slate-500">От: {a.createdBy}</div>}
           </div>
-        </div>
-        <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Отмена</button>
-          <button
-            onClick={handleSubmit}
-            disabled={!title.trim() || !text.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 rounded-lg text-white font-medium"
-          >
-            📢 Опубликовать
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ОБЪЯВЛЕНИЯ ============
-function EditAnnouncementModal({
-  announcement,
-  onClose,
-  onUpdate
-}: {
-  announcement: gs.Announcement;
-  onClose: () => void;
-  onUpdate: (id: string, updates: Partial<gs.Announcement>) => void;
-}) {
-  const [title, setTitle] = useState(announcement.title);
-  const [text, setText] = useState(announcement.text);
-  const [recipients, setRecipients] = useState<string[]>(announcement.recipients || ['employees', 'warehouse']);
-
-  const handleSubmit = () => {
-    if (!title.trim() || !text.trim()) {
-      alert('Заполните заголовок и текст объявления');
-      return;
-    }
-    onUpdate(announcement.id, { title, text, recipients });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-2xl shadow-2xl">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-bold text-slate-800">✏️ Редактировать объявление</h3>
-        </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="text-sm text-slate-600 mb-1 block">Заголовок *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Введите заголовок объявления"
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600 mb-1 block">Текст объявления *</label>
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Введите текст объявления"
-              rows={6}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600 mb-2 block">Получатели</label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={recipients.includes('employees')}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      setRecipients([...recipients, 'employees']);
-                    } else {
-                      setRecipients(recipients.filter(r => r !== 'employees'));
-                    }
-                  }}
-                  className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-slate-700">Сотрудники</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={recipients.includes('warehouse')}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      setRecipients([...recipients, 'warehouse']);
-                    } else {
-                      setRecipients(recipients.filter(r => r !== 'warehouse'));
-                    }
-                  }}
-                  className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-slate-700">Кладовщик</span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Отмена</button>
-          <button
-            onClick={handleSubmit}
-            disabled={!title.trim() || !text.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 rounded-lg text-white font-medium"
-          >
-            💾 Сохранить
-          </button>
-        </div>
+        ))}
       </div>
     </div>
   );
