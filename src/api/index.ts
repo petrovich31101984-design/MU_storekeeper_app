@@ -51,6 +51,32 @@ export async function rawPost(action: string, data: unknown): Promise<void> {
   if (result?.error) throw new Error(result.error);
 }
 
+/**
+ * POST-запрос, который браузер доставит даже при закрытии вкладки (navigator.sendBeacon).
+ * Ответ не читается. Без настроенного подключения ничего не делает.
+ */
+export function beaconPost(action: string, data: unknown): void {
+  const config = getConfig();
+  if (!config) return;
+  const body = JSON.stringify({ action, data });
+  try {
+    const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+    if (navigator.sendBeacon && navigator.sendBeacon(config.scriptUrl, blob)) return;
+  } catch { /* sendBeacon недоступен — пробуем fetch */ }
+  fetch(config.scriptUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body,
+    keepalive: true,
+  }).catch(() => { /* статус обновится при следующей отметке */ });
+}
+
+/** Статус кладовщика в листе «Сотрудники»: «Активен», пока приложение открыто, иначе «Неактивен» */
+export function setStorekeeperActive(id: string, active: boolean): void {
+  if (!id) return;
+  beaconPost('updateEmployeeShift', { id, shiftOpen: active });
+}
+
 export async function testConnection() {
   const result = await rawGet('test');
   return { title: String(result.title ?? ''), sheets: Array.isArray(result.sheets) ? result.sheets as string[] : [] };

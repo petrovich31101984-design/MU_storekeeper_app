@@ -3592,6 +3592,26 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const data = useData();
 
+  // Статус кладовщика: «Активен», пока приложение открыто; «Неактивен» при закрытии
+  // вкладки/окна (а при выходе из аккаунта — см. logout в App).
+  useEffect(() => {
+    const markActive = () => api.setStorekeeperActive(user.id, true);
+    markActive();
+    // Повтор раз в 2 минуты: при перезагрузке страницы отметки «закрыл» и «открыл»
+    // могут дойти до таблицы в обратном порядке — повтор восстановит «Активен».
+    const heartbeat = window.setInterval(markActive, 2 * 60 * 1000);
+    const onPageHide = () => api.setStorekeeperActive(user.id, false);
+    // Страница вернулась из кэша браузера (кнопка «Назад») — снова активен
+    const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) markActive(); };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      window.clearInterval(heartbeat);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [user.id]);
+
   if (data.loading) {
     return <SmuLoader />;
   }
@@ -3724,10 +3744,13 @@ export default function App() {
     setUser(u);
   };
   const logout = () => {
+    if (user) api.setStorekeeperActive(user.id, false);
     try { localStorage.removeItem(SESSION_KEY); } catch { /* хранилище недоступно */ }
     setUser(null);
   };
   const changeConnection = () => {
+    // отметить «Неактивен», пока адрес таблицы ещё известен
+    if (user) api.setStorekeeperActive(user.id, false);
     api.clearConfig();
     logout();
     setConfigured(false);
