@@ -3690,7 +3690,6 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
             </h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-slate-700 hidden md:block">👤 {user.fullName}</div>
             <div className="text-sm text-slate-500 hidden md:block">
               {new Date().toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}
             </div>
