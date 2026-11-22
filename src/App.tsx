@@ -2408,25 +2408,6 @@ function NomenclaturePage({ data }: { data: ReturnType<typeof useData> }) {
         <p className="text-slate-500 text-sm mt-1">Всего позиций: {nomenclature.length}</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-          <div className="text-2xl font-bold text-red-600">{nomenclature.filter(n => n.category === 'ЛС ПКУ').length}</div>
-          <div className="text-xs text-slate-500">ЛС ПКУ</div>
-        </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-          <div className="text-2xl font-bold text-green-600">{nomenclature.filter(n => n.category === 'ЛС').length}</div>
-          <div className="text-xs text-slate-500">ЛС</div>
-        </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-          <div className="text-2xl font-bold text-blue-600">{nomenclature.filter(n => n.category === 'Расходный материал').length}</div>
-          <div className="text-xs text-slate-500 uppercase">Расходных материалов</div>
-        </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-          <div className="text-2xl font-bold text-purple-600">{nomenclature.filter(n => n.category === 'Оборудование').length}</div>
-          <div className="text-xs text-slate-500 uppercase">Оборудования</div>
-        </div>
-      </div>
-
       <div className="flex gap-3">
         <input type="text" placeholder="Поиск..." value={search} onChange={e => setSearch(e.target.value)}
           className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-sm" />
@@ -3879,6 +3860,26 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
   return (
     <div className="space-y-6">
       <AnnouncementsPanel announcements={warehouseAnnouncements} />
+
+      {/* Номенклатура по категориям */}
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+          <div className="text-2xl font-bold text-red-600">{data.nomenclature.filter(n => n.category === 'ЛС ПКУ').length}</div>
+          <div className="text-xs text-slate-500">ЛС ПКУ</div>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+          <div className="text-2xl font-bold text-green-600">{data.nomenclature.filter(n => n.category === 'ЛС').length}</div>
+          <div className="text-xs text-slate-500">ЛС</div>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+          <div className="text-2xl font-bold text-blue-600">{data.nomenclature.filter(n => n.category === 'Расходный материал').length}</div>
+          <div className="text-xs text-slate-500 uppercase">Расходных материалов</div>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+          <div className="text-2xl font-bold text-purple-600">{data.nomenclature.filter(n => n.category === 'Оборудование').length}</div>
+          <div className="text-xs text-slate-500 uppercase">Оборудования</div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Приход за предыдущий месяц */}
