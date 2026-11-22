@@ -8,7 +8,6 @@ import SmuLoader from './components/SmuLoader';
 
 // Версия приложения кладовщика (также в заголовке вкладки в index.html)
 const APP_VERSION = '0.5.5';
-const APP_SUBTITLE = `Система медицинского учёта (к) v.${APP_VERSION}`;
 const SESSION_KEY = 'storekeeperSession';
 
 // ============ ХУК ДЛЯ РАБОТЫ С ДАННЫМИ ============
@@ -3624,8 +3623,8 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
           <img src={LOGO_URL} alt="СМУ" className="w-10 h-10 rounded-lg object-contain shrink-0" />
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <h1 className="text-sm font-bold whitespace-nowrap"><span className="text-blue-600">СМУ</span></h1>
-              <p className="text-xs text-slate-500 leading-tight">{APP_SUBTITLE}</p>
+              <h1 className="text-sm font-bold whitespace-nowrap tracking-wide"><span className="text-[#0202FA]">С</span><span className="text-[#FA0202]">М</span><span className="text-[#0202FA]">У</span></h1>
+              <p className="text-xs text-slate-500 leading-tight">Система медицинского учёта (к) <span className="text-green-600 font-semibold">(v.{APP_VERSION})</span></p>
             </div>
           )}
         </div>
