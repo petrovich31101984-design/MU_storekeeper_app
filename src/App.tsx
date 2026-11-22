@@ -241,7 +241,7 @@ function ConnectionErrorScreen({ error, onRetry }: { error: string; onRetry: () 
 }
 
 // ============ НАСТРОЙКИ ============
-function SettingsPage({ user, onLogout, onChangeConnection }: { user: Storekeeper; onLogout: () => void; onChangeConnection: () => void }) {
+function SettingsPage({ onChangeConnection }: { onChangeConnection: () => void }) {
   const config = gs.getCurrentConfig();
 
   const handleDisconnect = () => {
@@ -253,18 +253,6 @@ function SettingsPage({ user, onLogout, onChangeConnection }: { user: Storekeepe
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Настройки</h2>
         <p className="text-slate-500 text-sm mt-1">Информация о системе и подключении</p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-800">👤 Кладовщик</h3>
-          <button onClick={onLogout} className="px-3 py-1.5 bg-white text-slate-700 rounded-lg text-sm hover:bg-slate-100 border border-slate-300">Выйти</button>
-        </div>
-        <div className="p-5 space-y-2 text-sm">
-          <div className="flex justify-between py-2 border-b border-slate-100"><span className="text-slate-500">ФИО</span><span className="text-slate-800 font-semibold">{user.fullName}</span></div>
-          <div className="flex justify-between py-2 border-b border-slate-100"><span className="text-slate-500">Персональный номер</span><span className="text-slate-800">{user.personalNumber}</span></div>
-          <div className="flex justify-between py-2"><span className="text-slate-500">Должность</span><span className="text-slate-800">{user.position}</span></div>
-        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -3321,7 +3309,7 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
       case 'returns': return <ReturnsPage data={data} />;
       case 'archive': return <ArchivePage data={data} />;
       case 'chat': return <ChatPage data={data} focusEmployeeId={focusChatEmployeeId} onFocusHandled={() => setFocusChatEmployeeId(null)} />;
-      case 'settings': return <SettingsPage user={user} onLogout={onLogout} onChangeConnection={onChangeConnection} />;
+      case 'settings': return <SettingsPage onChangeConnection={onChangeConnection} />;
     }
   };
 
@@ -3390,6 +3378,7 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
             <div className="text-sm text-slate-500 hidden md:block">
               {new Date().toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}
             </div>
+            <button onClick={onLogout} className="px-3 py-1.5 bg-white text-slate-700 rounded-lg text-sm hover:bg-slate-100 border border-slate-300">Выйти</button>
           </div>
         </header>
         <main className="p-6 overflow-hidden max-w-full">{renderPage()}</main>
