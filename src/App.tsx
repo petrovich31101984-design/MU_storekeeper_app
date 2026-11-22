@@ -3614,44 +3614,17 @@ export default function App() {
 }
 
 // ============ DASHBOARD ============
-function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
+function Dashboard({ data, onOpenChat, onOpenReturns }: {
   data: ReturnType<typeof useData>;
   onOpenSheet: (sheetId: string) => void;
   onOpenChat: (employeeId: string) => void;
   onOpenReturns: () => void;
 }) {
-  const { employees, expenseSheets, returns } = data;
+  const { returns } = data;
 
   // Сотрудники оформляют возвраты со статусом «Ожидает подтверждения» (раньше считались только «Новый»)
   const pendingReturns = returns.filter(gs.isReturnPending).length;
 
-  // Уведомления о превышении лимита в листах расхода (расход > 5% стоимости терапии,
-  // то же правило, что в «Расход у сотрудника»). Архивные листы считаются обработанными.
-  // Закрытые уведомления запоминаются в этом браузере.
-  const DISMISSED_KEY = 'dismissedLimitNotifications';
-  const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]'); } catch { return []; }
-  });
-  const formatDate = (value: string) => {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? value : d.toLocaleDateString('ru-RU');
-  };
-  const notifications = expenseSheets
-    .filter(sheet => !sheet.archived && sheet.therapyCost > 0 && (sheet.totalAmount * 100) / sheet.therapyCost > 5)
-    .filter(sheet => !dismissedIds.includes(sheet.id))
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-    .map(sheet => {
-      const percent = (sheet.totalAmount * 100) / sheet.therapyCost;
-      const limitAmount = sheet.therapyCost * 0.05;
-      const employee = employees.find(e => normId(e.id) === normId(sheet.employeeId));
-      const name = employee?.fullName || sheet.employeeName || 'Сотрудник';
-      return {
-        id: sheet.id,
-        type: 'alert',
-        text: `⚠️ Превышение лимита: ${name} — ${percent.toFixed(2)}% (${sheet.totalAmount.toLocaleString('ru-RU')} ₽ при лимите ${limitAmount.toLocaleString('ru-RU')} ₽)`,
-        time: `Лист расхода от ${formatDate(sheet.date)}${sheet.patientName ? ` • пациент: ${sheet.patientName}` : ''}`,
-      };
-    });
   const messages = data.chatMessages
     .filter(isIncomingUnreadMessage)
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -3662,12 +3635,6 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
       text: msg.text,
       time: msg.date ? new Date(msg.date).toLocaleString('ru-RU') : '',
     }));
-
-  const handleNotificationClick = (id: string) => {
-    const next = [...dismissedIds, id];
-    setDismissedIds(next);
-    try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* хранилище недоступно — скроем до перезагрузки */ }
-  };
 
   const handleMessageClick = (id: string) => {
     data.setChatMessages(data.chatMessages.map(msg => msg.id === id ? { ...msg, read: true } : msg));
@@ -3705,51 +3672,8 @@ function Dashboard({ data, onOpenSheet, onOpenChat, onOpenReturns }: {
         </div>
       </div>
 
-      {/* Блоки уведомлений и сообщений */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Блок уведомлений */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm h-96 flex flex-col">
-          <div className="p-5 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800">🔔 Уведомления</h3>
-            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
-              {notifications.length}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {notifications.length === 0 ? (
-              <div className="text-center text-slate-400 mt-8">
-                <div className="text-3xl mb-2">🔕</div>
-                <p>Нет новых уведомлений</p>
-              </div>
-            ) : (
-              notifications.map(notif => (
-                <div
-                  key={notif.id}
-                  onClick={() => { handleNotificationClick(notif.id); onOpenSheet(notif.id); }}
-                  title="Открыть лист расхода"
-                  className={`p-4 rounded-lg border cursor-pointer transition-shadow hover:shadow-md ${
-                    notif.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                    notif.type === 'alert' ? 'bg-red-50 border-red-200 hover:border-red-300' :
-                    'bg-blue-50 border-blue-200'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-800 font-medium">{notif.text}</p>
-                      <p className="text-xs text-slate-500 mt-1">{notif.time}</p>
-                    </div>
-                    <span
-                      title="Скрыть уведомление"
-                      onClick={(event) => { event.stopPropagation(); handleNotificationClick(notif.id); }}
-                      className="text-red-500 text-lg cursor-pointer hover:text-red-700 transition-colors"
-                    >×</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
+      {/* Блок сообщений (уведомления о превышении лимита кладовщику не показываются) */}
+      <div className="grid grid-cols-1 gap-6">
         {/* Блок сообщений */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm h-96 flex flex-col">
           <div className="p-5 border-b border-slate-200 flex items-center justify-between">
