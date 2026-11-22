@@ -1078,10 +1078,6 @@ function ExpenseSheetView({
   highlighted?: boolean;
 }) {
   const emp = employees.find(e => e.id === sheet.employeeId);
-  const limit = sheet.therapyCost > 0 ? (sheet.totalAmount * 100) / sheet.therapyCost : 0;
-  const limitAmount = sheet.therapyCost * 0.05;
-  const isExceeded = limit > 5;
-  const isLow = limit < 2.5;
 
   const formatDateShort = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -1115,20 +1111,19 @@ function ExpenseSheetView({
     csv += `Дата рождения:,${sheet.patientBirthDate ? formatDateShort(sheet.patientBirthDate) : '-'}\n\n`;
     
     csv += 'Препараты и расходники\n';
-    csv += 'Название,Тип,Количество,Цена за единицу,Сумма\n';
-    
+    // Кладовщику цены и суммы не показываются — в выгрузке тоже
+    csv += 'Название,Тип,Количество\n';
+
     // Сортируем: ЛС ПКУ всегда первые
     const sortedItems = [...sheet.items].sort((a, b) => {
       if (a.category === 'ЛС ПКУ' && b.category !== 'ЛС ПКУ') return -1;
       if (a.category !== 'ЛС ПКУ' && b.category === 'ЛС ПКУ') return 1;
       return 0;
     });
-    
+
     sortedItems.forEach(item => {
-      csv += `${item.name},${item.category},${item.quantity},${item.pricePerUnit},${item.total}\n`;
+      csv += `${item.name},${item.category},${item.quantity}\n`;
     });
-    
-    csv += `\nИТОГО,,,,${sheet.totalAmount}\n`;
 
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1205,53 +1200,6 @@ function ExpenseSheetView({
               <span className="font-semibold">{sheet.patientBirthDate ? formatDateShort(sheet.patientBirthDate) : '-'}</span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-x-2 gap-y-2">
-            <div>
-              <span className="text-slate-600">Категория выезда:</span>{' '}
-              <span className="font-semibold">{sheet.callCategory}</span>
-            </div>
-            <div>
-              <span className="text-slate-600">Название терапии:</span>{' '}
-              <span className="font-semibold">{sheet.therapyName || '-'}</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <div>
-              <span className="text-slate-600">Стоимость терапии:</span>{' '}
-              <span className="font-semibold">
-                {sheet.therapyCost.toLocaleString('ru-RU')} ₽
-                {sheet.therapyCost > 0 && (
-                  <span className="text-slate-500 ml-2">(лимит: {limitAmount.toLocaleString('ru-RU')} ₽)</span>
-                )}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-600">Итого по препаратам:</span>{' '}
-              <span className="font-semibold">{sheet.totalAmount.toLocaleString('ru-RU')} ₽</span>
-            </div>
-          </div>
-
-          {/* Использование лимита */}
-          {sheet.therapyCost > 0 && (
-            <div className="mt-4">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-slate-700">Использование лимита</span>
-                <span className={`text-sm ${isExceeded ? 'text-red-600' : isLow ? 'text-slate-500' : 'text-emerald-600'}`}>
-                  {limit.toFixed(2)}%
-                </span>
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all ${
-                    isExceeded ? 'bg-red-500' : isLow ? 'bg-slate-400' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(limit, 100)}%` }}
-                ></div>
-              </div>
-              {isExceeded && <div className="text-xs text-red-600 mt-1">⚠️ Превышение лимита 5%</div>}
-              {isLow && <div className="text-xs text-slate-500 mt-1">ℹ️ Лимит ниже 2.5%</div>}
-            </div>
-          )}
         </div>
       </div>
 
@@ -1264,10 +1212,8 @@ function ExpenseSheetView({
         <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
           <table className="w-full border-collapse">
             <colgroup>
-              <col style={{ width: '40%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '15%' }} />
+              <col style={{ width: '60%' }} />
+              <col style={{ width: '25%' }} />
               <col style={{ width: '15%' }} />
             </colgroup>
             <thead>
@@ -1275,8 +1221,6 @@ function ExpenseSheetView({
                 <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300">Название</th>
                 <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300">Тип</th>
                 <th className="px-3 py-2 text-center text-sm font-semibold text-slate-700 border border-slate-300">Количество</th>
-                <th className="px-3 py-2 text-right text-sm font-semibold text-slate-700 border border-slate-300">Цена за единицу</th>
-                <th className="px-3 py-2 text-right text-sm font-semibold text-slate-700 border border-slate-300">Сумма</th>
               </tr>
             </thead>
             <tbody>
@@ -1293,23 +1237,14 @@ function ExpenseSheetView({
                       <td className="px-3 py-2 text-sm text-slate-800 border border-slate-300">{item.name}</td>
                       <td className="px-3 py-2 text-sm text-slate-700 border border-slate-300">{item.category}</td>
                       <td className="px-3 py-2 text-center text-sm text-slate-800 border border-slate-300">{item.quantity}</td>
-                      <td className="px-3 py-2 text-right text-sm text-slate-700 border border-slate-300">{item.pricePerUnit.toLocaleString('ru-RU')} ₽</td>
-                      <td className="px-3 py-2 text-right text-sm font-semibold text-slate-800 border border-slate-300">{item.total.toLocaleString('ru-RU')} ₽</td>
                     </tr>
                   ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-sm text-slate-400 border border-slate-300">Нет данных</td>
+                  <td colSpan={3} className="px-3 py-4 text-center text-sm text-slate-400 border border-slate-300">Нет данных</td>
                 </tr>
               )}
             </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-slate-300 bg-slate-50">
-                <td className="px-3 py-2 text-left text-sm font-semibold text-slate-800 border border-slate-300">ИТОГО</td>
-                <td colSpan={3} className="border border-slate-300"></td>
-                <td className="px-3 py-2 text-right text-sm font-semibold text-blue-600 border border-slate-300">{sheet.totalAmount.toLocaleString('ru-RU')} ₽</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
@@ -2906,7 +2841,7 @@ function EditExpenseSheetModal({
     return `${day}.${month}.${year}`;
   };
 
-  const totalAmount = formData.items.reduce((sum, item) => sum + item.total, 0);
+
 
   const handleAddItem = () => {
     setFormData({
@@ -2926,8 +2861,22 @@ function EditExpenseSheetModal({
     const newItems = [...formData.items];
     newItems[index] = { ...newItems[index], [field]: value };
     
+    // Кладовщик не видит цен: при вводе названия цена и тип подтягиваются из номенклатуры
+    if (field === 'name') {
+      const key = String(value ?? '').trim().toLowerCase();
+      const match = nomenclature.find(n => String(n.name ?? '').trim().toLowerCase() === key);
+      if (match) {
+        newItems[index] = {
+          ...newItems[index],
+          nomenclatureId: match.id,
+          category: match.category,
+          pricePerUnit: Number(match.currentPrice) || 0,
+        };
+      }
+    }
+
     // Пересчитываем сумму
-    if (field === 'quantity' || field === 'pricePerUnit') {
+    if (field === 'name' || field === 'quantity' || field === 'pricePerUnit') {
       newItems[index].total = newItems[index].quantity * newItems[index].pricePerUnit;
     }
     
@@ -3017,38 +2966,7 @@ function EditExpenseSheetModal({
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Категория выезда</label>
-              <select
-                value={formData.callCategory}
-                onChange={(e) => setFormData({ ...formData, callCategory: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Первичный">Первичный</option>
-                <option value="Повторный">Повторный</option>
-                <option value="Экстренный">Экстренный</option>
-                <option value="Плановый">Плановый</option>
-                <option value="Курс">Курс</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Название терапии</label>
-              <input
-                type="text"
-                value={formData.therapyName}
-                onChange={(e) => setFormData({ ...formData, therapyName: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Стоимость терапии (₽)</label>
-              <input
-                type="number"
-                value={formData.therapyCost}
-                onChange={(e) => setFormData({ ...formData, therapyCost: Number(e.target.value) })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            {/* Категория выезда, название и стоимость терапии кладовщику не показываются — сохраняются как были */}
           </div>
 
           {/* Препараты и расходники */}
@@ -3065,20 +2983,16 @@ function EditExpenseSheetModal({
             
             <table className="w-full border-collapse">
               <colgroup>
-                <col style={{ width: '35%' }} />
-                <col style={{ width: '15%' }} />
+                <col style={{ width: '50%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '16%' }} />
                 <col style={{ width: '12%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '8%' }} />
               </colgroup>
               <thead>
                 <tr className="bg-slate-100">
                   <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300">Название</th>
                   <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300">Тип</th>
                   <th className="px-3 py-2 text-center text-sm font-semibold text-slate-700 border border-slate-300">Количество</th>
-                  <th className="px-3 py-2 text-right text-sm font-semibold text-slate-700 border border-slate-300">Цена за единицу</th>
-                  <th className="px-3 py-2 text-right text-sm font-semibold text-slate-700 border border-slate-300">Сумма</th>
                   <th className="px-3 py-2 text-center text-sm font-semibold text-slate-700 border border-slate-300">Действия</th>
                 </tr>
               </thead>
@@ -3114,18 +3028,6 @@ function EditExpenseSheetModal({
                         min="1"
                       />
                     </td>
-                    <td className="px-3 py-2 border border-slate-300">
-                      <input
-                        type="number"
-                        value={item.pricePerUnit}
-                        onChange={(e) => handleUpdateItem(index, 'pricePerUnit', Number(e.target.value))}
-                        className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-right"
-                        min="0"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-slate-800 border border-slate-300">
-                      {item.total.toLocaleString('ru-RU')} ₽
-                    </td>
                     <td className="px-3 py-2 text-center border border-slate-300">
                       <button
                         onClick={() => handleRemoveItem(index)}
@@ -3137,16 +3039,6 @@ function EditExpenseSheetModal({
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-300">
-                  <td className="px-3 py-2 text-left text-sm font-semibold text-slate-800">ИТОГО</td>
-                  <td colSpan={3}></td>
-                  <td className="px-3 py-2 text-right text-sm font-semibold text-blue-600">
-                    {totalAmount.toLocaleString('ru-RU')} ₽
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
