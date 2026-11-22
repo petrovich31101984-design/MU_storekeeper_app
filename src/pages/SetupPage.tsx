@@ -37,7 +37,7 @@ export function SetupPage({ onDone }: { onDone: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 flex items-center justify-center p-4">
       <div className="max-w-xl w-full">
-        <Brand subtitle="Система медицинского учёта (к) v. 0.5.5" />
+        <Brand subtitle="Система медицинского учёта (к) v.0.5.5" />
         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-5">
           <div className="text-sm text-slate-700 space-y-2">
             <p className="font-semibold text-slate-800">Подключение к общей Google-таблице</p>

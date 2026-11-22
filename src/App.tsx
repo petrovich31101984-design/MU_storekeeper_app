@@ -7,7 +7,7 @@ import { SetupPage as ConnectPage } from './pages/SetupPage';
 
 // Версия приложения кладовщика (также в заголовке вкладки в index.html)
 const APP_VERSION = '0.5.5';
-const APP_SUBTITLE = `Система медицинского учёта (к) v. ${APP_VERSION}`;
+const APP_SUBTITLE = `Система медицинского учёта (к) v.${APP_VERSION}`;
 const SESSION_KEY = 'storekeeperSession';
 
 // ============ ХУК ДЛЯ РАБОТЫ С ДАННЫМИ ============
