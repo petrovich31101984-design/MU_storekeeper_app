@@ -280,7 +280,7 @@ function SettingsPage({ onChangeConnection }: { onChangeConnection: () => void }
         <div className="p-5 space-y-2">
           <div className="flex justify-between py-2 border-b border-slate-100">
             <span className="text-sm text-slate-500">Приложение</span>
-            <span className="text-sm text-slate-800 font-semibold">Система медицинского учёта (к) — приложение кладовщика</span>
+            <span className="text-sm text-slate-800 font-semibold">СМУк (приложение для кладовщика)</span>
           </div>
           <div className="flex justify-between py-2 border-b border-slate-100">
             <span className="text-sm text-slate-500">Версия</span>
