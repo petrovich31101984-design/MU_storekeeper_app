@@ -297,6 +297,7 @@ function SettingsPage({ user, onLogout, onChangeConnection }: { user: Storekeepe
           </div>
         </div>
       </div>
+      <p className="text-center text-xs text-slate-400">© {new Date().getFullYear()} СМУ • Выездная медицинская помощь • Петрович Е.В.</p>
     </div>
   );
 }
