@@ -2017,7 +2017,11 @@ function ReturnsPage({ data }: { data: ReturnType<typeof useData> }) {
 function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
   const { nomenclature } = data;
 
-  const { balanceEmployees: allEmployees, calculateBalance } = createBalanceCalculator(data);
+  const { balanceEmployees, calculateBalance } = createBalanceCalculator(data);
+  // Кладовщиков (и самого вошедшего кладовщика) в остатках не показываем — только выездные сотрудники
+  const allEmployees = balanceEmployees.filter(e =>
+    !/кладовщ/i.test(String(e.position ?? '')) && normId(e.id) !== normId(gs.actor.id)
+  );
 
   // Функция для расчёта общего количества по номенклатуре
   const calculateTotalQuantity = (nomenclatureId: string): number => {
