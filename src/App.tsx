@@ -2032,15 +2032,6 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
     return total;
   };
 
-  // Общее количество всех позиций у сотрудника (кладовщику показываются только количества, без денег)
-  const calculateEmployeeQuantity = (employeeId: string): number => {
-    let total = 0;
-    nomenclature.forEach(item => {
-      total += calculateBalance(employeeId, item.id);
-    });
-    return total;
-  };
-
   return (
     <div className="space-y-4">
       {/* Блок 1: Шапка */}
@@ -2101,23 +2092,6 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                       </tr>
                     );
                   })}
-
-                  {/* Итоговая строка */}
-                  <tr className="bg-slate-100 font-bold">
-                    <td className="px-3 py-3 text-sm text-slate-800 border border-slate-300 sticky left-0 bg-slate-100 z-10" style={{ minWidth: '220px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>ИТОГО</td>
-                    <td className="px-3 py-3 text-sm text-slate-800 border border-slate-300 sticky left-[220px] bg-slate-100 z-11" style={{ minWidth: '100px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>—</td>
-                    {allEmployees.map((emp: gs.Employee) => {
-                      const empQty = calculateEmployeeQuantity(emp.id);
-                      return (
-                        <td key={emp.id} className={`px-3 py-3 text-sm text-left border border-slate-300 bg-slate-100 ${empQty > 0 ? 'text-slate-800' : empQty < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '130px' }}>
-                          {empQty}
-                        </td>
-                      );
-                    })}
-                    <td className="px-3 py-3 text-sm text-left border border-slate-300 bg-slate-200 text-slate-800 sticky right-0 z-11" style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
-                      {nomenclature.reduce((sum, item) => sum + calculateTotalQuantity(item.id), 0)}
-                    </td>
-                  </tr>
                 </>
               )}
             </tbody>
