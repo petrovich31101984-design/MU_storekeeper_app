@@ -2028,21 +2028,11 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
     return total;
   };
 
-  // Функция для расчёта общей стоимости по сотруднику
-  const calculateEmployeeTotal = (employeeId: string): number => {
+  // Общее количество всех позиций у сотрудника (кладовщику показываются только количества, без денег)
+  const calculateEmployeeQuantity = (employeeId: string): number => {
     let total = 0;
     nomenclature.forEach(item => {
-      const balance = calculateBalance(employeeId, item.id);
-      total += balance * item.currentPrice;
-    });
-    return total;
-  };
-
-  // Функция для расчёта общего итога
-  const calculateGrandTotal = (): number => {
-    let total = 0;
-    allEmployees.forEach((emp: gs.Employee) => {
-      total += calculateEmployeeTotal(emp.id);
+      total += calculateBalance(employeeId, item.id);
     });
     return total;
   };
@@ -2063,7 +2053,6 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
               <tr className="bg-slate-100">
                 <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 sticky left-0 bg-slate-100 z-30" style={{ minWidth: '220px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>Номенклатура</th>
                 <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 sticky left-[220px] bg-slate-100 z-31" style={{ minWidth: '100px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>Ед. изм.</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 sticky left-[320px] bg-slate-100 z-32" style={{ minWidth: '110px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>Цена за ед.</th>
                 {allEmployees.map((emp: gs.Employee) => {
                   const parts = emp.fullName.trim().split(' ');
                   const lastName = parts[0] || '';
@@ -2075,14 +2064,13 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                     </th>
                   );
                 })}
-                <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 bg-slate-200 sticky right-[130px] z-31" style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, inset -1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>Итого кол-во</th>
-                <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 bg-slate-200 sticky right-0 z-32" style={{ minWidth: '130px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>Итого сумма</th>
+                <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 bg-slate-200 sticky right-0 z-31" style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>Итого кол-во</th>
               </tr>
             </thead>
             <tbody>
               {nomenclature.length === 0 ? (
                 <tr>
-                  <td colSpan={3 + allEmployees.length + 2} className="px-3 py-8 text-center text-sm text-slate-400 border border-slate-300">
+                  <td colSpan={2 + allEmployees.length + 1} className="px-3 py-8 text-center text-sm text-slate-400 border border-slate-300">
                     Нет данных
                   </td>
                 </tr>
@@ -2090,13 +2078,11 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                 <>
                   {nomenclature.map((item) => {
                     const totalQty = calculateTotalQuantity(item.id);
-                    const totalSum = totalQty * item.currentPrice;
 
                     return (
                       <tr key={item.id} className="group bg-white hover:bg-blue-50 transition-colors">
                         <td className="px-3 py-2 text-sm text-slate-800 border border-slate-300 sticky left-0 bg-white group-hover:bg-blue-50 z-10" style={{ minWidth: '220px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.name}</td>
                         <td className="px-3 py-2 text-sm text-slate-700 border border-slate-300 sticky left-[220px] bg-white group-hover:bg-blue-50 z-11" style={{ minWidth: '100px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.unit}</td>
-                        <td className="px-3 py-2 text-sm text-left text-slate-700 border border-slate-300 sticky left-[320px] bg-white group-hover:bg-blue-50 z-12" style={{ minWidth: '110px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.currentPrice.toLocaleString('ru-RU')} ₽</td>
                         {allEmployees.map((emp: gs.Employee) => {
                           const balance = calculateBalance(emp.id, item.id);
                           return (
@@ -2105,11 +2091,8 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                             </td>
                           );
                         })}
-                        <td className={`px-3 py-2 text-sm text-left font-semibold border border-slate-300 bg-slate-50 group-hover:bg-blue-100 sticky right-[130px] z-11 ${totalQty > 0 ? 'text-slate-800' : totalQty < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, inset -1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
+                        <td className={`px-3 py-2 text-sm text-left font-semibold border border-slate-300 bg-slate-50 group-hover:bg-blue-100 sticky right-0 z-11 ${totalQty > 0 ? 'text-slate-800' : totalQty < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
                           {totalQty}
-                        </td>
-                        <td className={`px-3 py-2 text-sm text-left font-semibold border border-slate-300 bg-slate-50 group-hover:bg-blue-100 sticky right-0 z-12 ${totalSum > 0 ? 'text-emerald-600' : totalSum < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '130px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
-                          {totalSum.toLocaleString('ru-RU')} ₽
                         </td>
                       </tr>
                     );
@@ -2119,20 +2102,16 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                   <tr className="bg-slate-100 font-bold">
                     <td className="px-3 py-3 text-sm text-slate-800 border border-slate-300 sticky left-0 bg-slate-100 z-10" style={{ minWidth: '220px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>ИТОГО</td>
                     <td className="px-3 py-3 text-sm text-slate-800 border border-slate-300 sticky left-[220px] bg-slate-100 z-11" style={{ minWidth: '100px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>—</td>
-                    <td className="px-3 py-3 text-sm text-slate-800 border border-slate-300 sticky left-[320px] bg-slate-100 z-12" style={{ minWidth: '110px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>—</td>
                     {allEmployees.map((emp: gs.Employee) => {
-                      const empTotal = calculateEmployeeTotal(emp.id);
+                      const empQty = calculateEmployeeQuantity(emp.id);
                       return (
-                        <td key={emp.id} className={`px-3 py-3 text-sm text-left border border-slate-300 bg-slate-100 ${empTotal > 0 ? 'text-emerald-600' : empTotal < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '130px' }}>
-                          {empTotal.toLocaleString('ru-RU')} ₽
+                        <td key={emp.id} className={`px-3 py-3 text-sm text-left border border-slate-300 bg-slate-100 ${empQty > 0 ? 'text-slate-800' : empQty < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '130px' }}>
+                          {empQty}
                         </td>
                       );
                     })}
-                    <td className="px-3 py-3 text-sm text-left border border-slate-300 bg-slate-200 text-slate-800 sticky right-[130px] z-11" style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, inset -1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
+                    <td className="px-3 py-3 text-sm text-left border border-slate-300 bg-slate-200 text-slate-800 sticky right-0 z-11" style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
                       {nomenclature.reduce((sum, item) => sum + calculateTotalQuantity(item.id), 0)}
-                    </td>
-                    <td className={`px-3 py-3 text-sm text-left border border-slate-300 bg-slate-200 sticky right-0 z-12 ${calculateGrandTotal() > 0 ? 'text-emerald-600' : calculateGrandTotal() < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '130px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
-                      {calculateGrandTotal().toLocaleString('ru-RU')} ₽
                     </td>
                   </tr>
                 </>
