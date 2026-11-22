@@ -2033,16 +2033,18 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
   };
 
   return (
-    <div className="space-y-4">
+    // Одна прокрутка: страница по высоте ровно в экран (минус шапка 64px и отступы main 48px),
+    // таблица занимает всё оставшееся место и прокручивается только сама
+    <div className="flex flex-col gap-4" style={{ height: 'calc(100vh - 112px)' }}>
       {/* Блок 1: Шапка */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-200 px-6 py-4 shrink-0">
         <h2 className="text-2xl font-bold text-slate-800">🧰 Остаток у сотрудника</h2>
         <p className="text-slate-600 mt-1">Просмотр остатков номенклатуры у сотрудников</p>
       </div>
 
       {/* Блок 2: Таблица остатков */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-w-full">
-        <div className="overflow-x-auto overflow-y-auto max-w-full" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-w-full flex-1 min-h-0 flex flex-col">
+        <div className="overflow-auto max-w-full flex-1 min-h-0 overscroll-contain">
           <table className="border-collapse bg-white" style={{ borderSpacing: 0 }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-slate-100">
