@@ -329,8 +329,13 @@ export async function getExpenseSheets(): Promise<ExpenseSheet[]> {
 export const DECOR_RECORD_ID = 'smu-decor';
 export type DecorSettings = { garland: boolean; snow: boolean };
 export const isDecorRecord = (a: { id?: unknown }) => String(a.id ?? '').trim() === DECOR_RECORD_ID;
+const decorTime = (a: Announcement) => {
+  const t = new Date(a.date).getTime();
+  return Number.isNaN(t) ? 0 : t;
+};
+// Если служебных записей несколько (могли появиться дубли) — действует самая свежая по «Дате»
 export function readDecor(announcements: Announcement[]): DecorSettings {
-  const record = announcements.find(isDecorRecord);
+  const record = announcements.filter(isDecorRecord).sort((a, b) => decorTime(b) - decorTime(a))[0];
   try {
     const value = JSON.parse(record?.text || '{}');
     return { garland: value.garland === true, snow: value.snow === true };
