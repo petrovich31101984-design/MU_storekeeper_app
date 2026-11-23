@@ -63,8 +63,16 @@ function useData() {
   const [chatMessages, setChatMessages] = useState<gs.ChatMessage[]>([]);
   const [announcements, setAnnouncements] = useState<gs.Announcement[]>([]);
   const [auditLog, setAuditLog] = useState<gs.AuditEntry[]>([]);
+  // Декорирование (гирлянда, снег) — включает руководитель, читаем из служебной записи объявлений
+  const [decor, setDecor] = useState<gs.DecorSettings>({ garland: false, snow: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Объявления без служебной записи декора + сама настройка декора
+  const applyAnnouncements = useCallback((anns: gs.Announcement[]) => {
+    setAnnouncements(anns.filter(a => !gs.isDecorRecord(a)));
+    setDecor(gs.readDecor(anns));
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -75,11 +83,11 @@ function useData() {
         gs.getExpenses(), gs.getExpenseSheets(), gs.getReturns(), gs.getChatMessages(), gs.getAnnouncements(), gs.getAuditLog(),
       ]);
       setEmployees(emps); setNomenclature(noms); setArrivals(arrs); setInitialStocks(stocks);
-      setExpenses(exps); setExpenseSheets(expSheets); setReturns(rets); setChatMessages(current => mergeChatMessages(msgs, current)); setAnnouncements(anns); setAuditLog(logs);
+      setExpenses(exps); setExpenseSheets(expSheets); setReturns(rets); setChatMessages(current => mergeChatMessages(msgs, current)); applyAnnouncements(anns); setAuditLog(logs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки');
     } finally { setLoading(false); }
-  }, []);
+  }, [applyAnnouncements]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -117,12 +125,15 @@ function useData() {
       updatingRecords = true;
       const writesAtStart = gs.getWriteState();
       try {
-        const [sheets, arrs, rets, stocks] = await Promise.all([
+        const [sheets, arrs, rets, stocks, anns] = await Promise.all([
           gs.getExpenseSheets(), gs.getArrivals(), gs.getReturns(), gs.getInitialStock(),
+          // Объявления тоже обновляем: так новые объявления и включённый руководителем декор появляются без перезагрузки
+          gs.getAnnouncements(),
         ]);
         // Пока шла загрузка, руководитель что-то сохранил — данные могли устареть, ждём следующий раз
         if (!active || !isFresh(writesAtStart)) return;
         setExpenseSheets(sheets); setArrivals(arrs); setReturns(rets); setInitialStocks(stocks);
+        applyAnnouncements(anns);
       } catch (err) {
         console.error('Ошибка фонового обновления листов расхода и приходов:', err);
       } finally {
@@ -143,13 +154,14 @@ function useData() {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [applyAnnouncements]);
 
   return {
     employees, setEmployees, nomenclature, setNomenclature,
     arrivals, setArrivals, initialStocks, setInitialStocks, expenses, setExpenses, expenseSheets, setExpenseSheets,
     returns, setReturns, chatMessages, setChatMessages, announcements, setAnnouncements,
     auditLog, setAuditLog, loading, error, refresh,
+    decor,
   };
 }
 
@@ -3570,6 +3582,8 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
               {menuItems.find(m => m.id === currentPage)?.label}
             </h2>
           </div>
+          {/* Новогодняя гирлянда между названием раздела и датой — включает руководитель */}
+          {data.decor.garland && <NewYearGarland />}
           <div className="flex items-center gap-3">
             <div className="text-sm text-slate-500 hidden md:block">
               {new Date().toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}
@@ -3579,6 +3593,8 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
         </header>
         <main className="p-6 overflow-hidden max-w-full">{renderPage()}</main>
       </div>
+      {/* Снег поверх содержимого, но под шапкой, меню и окнами — включает руководитель */}
+      {data.decor.snow && <SnowfallLayer />}
     </div>
   );
 }
@@ -3618,6 +3634,165 @@ export default function App() {
   if (!user) return <LoginPage onLogin={login} onChangeConnection={changeConnection} />;
   // key: при смене пользователя данные загружаются заново
   return <MainApp key={user.id} user={user} onLogout={logout} onChangeConnection={changeConnection} />;
+}
+
+// ============ ДЕКОРИРОВАНИЕ (включает руководитель, см. gs.readDecor) ============
+// Хвойная гирлянда: ветки рисуются иглами из псевдослучайных (но всегда одинаковых) штрихов,
+// на них красные шары, золотые звёзды, белые снежинки, шишки и мерцающие золотые блики.
+// Один фрагмент шириной GARLAND_TILE_W повторяется по всей ширине; лишнее обрезается.
+const GARLAND_TILE_W = 200;
+const GARLAND_H = 52;
+const GARLAND_NEEDLES: string[] = (() => {
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const layers: string[][] = [[], [], [], []];
+  for (let x = -8; x <= GARLAND_TILE_W + 8; x += 2.5) {
+    // Ось ветки слегка волнистая; период волны = ширине фрагмента, чтобы стыки совпадали
+    const cy = 26 + Math.sin((x / GARLAND_TILE_W) * Math.PI * 2) * 3;
+    for (let k = 0; k < 5; k++) {
+      const angle = rand() * Math.PI * 2;
+      const len = 8 + rand() * 9;
+      const x1 = x + (rand() - 0.5) * 4;
+      const y1 = cy + (rand() - 0.5) * 6;
+      const x2 = x1 + Math.cos(angle) * len * 1.3;
+      const y2 = Math.min(GARLAND_H - 3, Math.max(3, y1 + Math.sin(angle) * len));
+      layers[Math.floor(rand() * 4)].push(`M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`);
+    }
+  }
+  return layers.map(l => l.join(''));
+})();
+const NEEDLE_STYLES = [
+  { stroke: '#14532d', width: 1.7 },
+  { stroke: '#166534', width: 1.5 },
+  { stroke: '#15803d', width: 1.3 },
+  { stroke: '#22c55e', width: 0.9 }, // светлые иглы
+];
+const starPath = (cx: number, cy: number, r: number) => {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const rad = i % 2 === 0 ? r : r * 0.45;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    pts.push(`${(cx + Math.cos(a) * rad).toFixed(1)},${(cy + Math.sin(a) * rad).toFixed(1)}`);
+  }
+  return `M${pts.join('L')}Z`;
+};
+const glintPath = (cx: number, cy: number, s: number) =>
+  `M${cx} ${cy - s}Q${cx} ${cy} ${cx + s} ${cy}Q${cx} ${cy} ${cx} ${cy + s}Q${cx} ${cy} ${cx - s} ${cy}Q${cx} ${cy} ${cx} ${cy - s}Z`;
+// Золотые блики: [x, y, размер]
+const GARLAND_GLINTS: Array<[number, number, number]> = [[36, 28, 4], [97, 24, 5], [144, 16, 4], [18, 12, 3], [162, 40, 3], [80, 41, 3.5], [192, 14, 4]];
+
+function GarlandTile({ index }: { index: number }) {
+  return (
+    <svg width={GARLAND_TILE_W} height={GARLAND_H} viewBox={`0 0 ${GARLAND_TILE_W} ${GARLAND_H}`} overflow="visible" className="shrink-0">
+      {GARLAND_NEEDLES.map((d, i) => (
+        <path key={i} d={d} stroke={NEEDLE_STYLES[i].stroke} strokeWidth={NEEDLE_STYLES[i].width} strokeLinecap="round" fill="none" />
+      ))}
+      {/* Шишка */}
+      <g transform="rotate(-25 66 18)">
+        <ellipse cx="66" cy="18" rx="5" ry="8" fill="#78350f" />
+        <path d="M61.5 14q4.5 2 9 0M61 18q5 2 10 0M61.5 22q4.5 2 9 0" stroke="#b45309" strokeWidth="1" fill="none" />
+      </g>
+      {/* Красные шары с бликом и золотым колпачком */}
+      {[[40, 34, 9], [140, 22, 8], [112, 42, 6]].map(([cx, cy, r]) => (
+        <g key={`${cx}`}>
+          <rect x={cx - 2} y={cy - r - 2.5} width="4" height="3" rx="0.8" fill="url(#garland-gold)" />
+          <circle cx={cx} cy={cy} r={r} fill="url(#garland-ball)" />
+          <ellipse cx={cx - r * 0.35} cy={cy - r * 0.4} rx={r * 0.28} ry={r * 0.18} fill="#fff" opacity="0.75" transform={`rotate(-30 ${cx - r * 0.35} ${cy - r * 0.4})`} />
+        </g>
+      ))}
+      {/* Золотая звезда */}
+      <path d={starPath(95, 30, 8.5)} fill="url(#garland-gold)" stroke="#a16207" strokeWidth="0.6" />
+      <path d={starPath(17, 40, 5.5)} fill="url(#garland-gold)" stroke="#a16207" strokeWidth="0.5" />
+      {/* Снежинка */}
+      <g stroke="#fff" strokeWidth="1.7" strokeLinecap="round" filter="url(#garland-shadow)">
+        {[0, 60, 120].map(a => (
+          <g key={a} transform={`rotate(${a} 176 25)`}>
+            <path d="M176 17v16M173.5 19.5l2.5 2.5 2.5-2.5M173.5 30.5l2.5-2.5 2.5 2.5" fill="none" />
+          </g>
+        ))}
+      </g>
+      {/* Мерцающие золотые блики */}
+      {GARLAND_GLINTS.map(([x, y, s], i) => (
+        <path key={i} d={glintPath(x, y, s)} className="garland-glint" style={{ animationDelay: `${((index * 3 + i * 5) % 12) * 0.25}s` }} />
+      ))}
+    </svg>
+  );
+}
+
+function NewYearGarland() {
+  return (
+    <div className="new-year-garland mx-6" aria-hidden="true">
+      {/* Общие градиенты и тень для всех фрагментов */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <radialGradient id="garland-ball" cx="35%" cy="30%" r="75%">
+            <stop offset="0%" stopColor="#fca5a5" />
+            <stop offset="35%" stopColor="#dc2626" />
+            <stop offset="100%" stopColor="#7f1d1d" />
+          </radialGradient>
+          <linearGradient id="garland-gold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="50%" stopColor="#eab308" />
+            <stop offset="100%" stopColor="#a16207" />
+          </linearGradient>
+          <filter id="garland-shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0.6" stdDeviation="0.6" floodColor="#0f172a" floodOpacity="0.5" />
+          </filter>
+        </defs>
+      </svg>
+      {Array.from({ length: 12 }, (_, i) => <GarlandTile key={i} index={i} />)}
+    </div>
+  );
+}
+
+// Падающий снег: редкие мелкие голубоватые полупрозрачные снежинки медленно опускаются сверху вниз,
+// слегка покачиваясь. Слой не перехватывает клики и лежит ниже шапки, меню и модальных окон,
+// поэтому не мешает работе. Параметры каждой снежинки псевдослучайные, но постоянные.
+const SNOWFLAKES = (() => {
+  let seed = 11;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  return Array.from({ length: 28 }, () => {
+    const duration = 18 + rand() * 16; // 18–34 с на весь экран — медленно
+    return {
+      left: rand() * 100,                      // % ширины окна
+      size: 8 + rand() * 9,                    // 8–17 px
+      opacity: 0.35 + rand() * 0.3,            // 0.35–0.65
+      duration,
+      delay: -rand() * duration,               // отрицательная задержка: снег сразу по всему экрану
+      sway: 12 + rand() * 22,                  // размах покачивания, px
+      swayDuration: 3 + rand() * 3,
+    };
+  });
+})();
+
+function SnowfallLayer() {
+  return (
+    <div className="snowfall" aria-hidden="true">
+      {SNOWFLAKES.map((f, i) => (
+        <div
+          key={i}
+          className="snowflake"
+          style={{ left: `${f.left}%`, animationDuration: `${f.duration}s`, animationDelay: `${f.delay}s` }}
+        >
+          <svg
+            width={f.size}
+            height={f.size}
+            viewBox="-10 -10 20 20"
+            className="snowflake-sway"
+            style={{ opacity: f.opacity, animationDuration: `${f.swayDuration}s`, ['--sway' as string]: `${f.sway}px` }}
+          >
+            <g stroke="#7dd3fc" strokeWidth="1.6" strokeLinecap="round" fill="none">
+              {[0, 60, 120].map(a => (
+                <g key={a} transform={`rotate(${a})`}>
+                  <path d="M0 -9V9M-2.5 -6.5L0 -4L2.5 -6.5M-2.5 6.5L0 4L2.5 6.5" />
+                </g>
+              ))}
+            </g>
+          </svg>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ============ DASHBOARD ============

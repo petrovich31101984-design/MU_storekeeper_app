@@ -322,6 +322,23 @@ export async function getExpenseSheets(): Promise<ExpenseSheet[]> {
   });
 }
 
+// ==================== ДЕКОРИРОВАНИЕ ====================
+// Руководитель включает гирлянду и снег в своём приложении; настройка хранится служебной записью
+// на листе «Объявления» с ID DECOR_RECORD_ID («Текст» — JSON {"garland":true,"snow":false}, «Активно» = НЕТ).
+// Кладовщик её только читает и не показывает как объявление.
+export const DECOR_RECORD_ID = 'smu-decor';
+export type DecorSettings = { garland: boolean; snow: boolean };
+export const isDecorRecord = (a: { id?: unknown }) => String(a.id ?? '').trim() === DECOR_RECORD_ID;
+export function readDecor(announcements: Announcement[]): DecorSettings {
+  const record = announcements.find(isDecorRecord);
+  try {
+    const value = JSON.parse(record?.text || '{}');
+    return { garland: value.garland === true, snow: value.snow === true };
+  } catch {
+    return { garland: false, snow: false };
+  }
+}
+
 export async function getAnnouncements(): Promise<Announcement[]> {
   const data = await fetchData('getAnnouncements');
   return data.map((row: any) => ({
