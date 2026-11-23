@@ -1097,13 +1097,17 @@ function ExpenseSheetView({
                     if (a.category !== 'ЛС ПКУ' && b.category === 'ЛС ПКУ') return 1;
                     return 0;
                   })
-                  .map(item => (
-                    <tr key={item.nomenclatureId} className="border-b border-slate-200">
-                      <td className="px-3 py-2 text-sm text-slate-800 border border-slate-300">{item.name}</td>
-                      <td className="px-3 py-2 text-sm text-slate-700 border border-slate-300">{item.category}</td>
-                      <td className="px-3 py-2 text-center text-sm text-slate-800 border border-slate-300">{item.quantity}</td>
-                    </tr>
-                  ))
+                  .map(item => {
+                    // ЛС ПКУ подсвечиваем оранжевым
+                    const isPku = item.category === 'ЛС ПКУ';
+                    return (
+                      <tr key={item.nomenclatureId} className={`border-b border-slate-200 ${isPku ? 'bg-orange-100' : ''}`}>
+                        <td className={`px-3 py-2 text-sm border border-slate-300 ${isPku ? 'text-orange-700 font-semibold' : 'text-slate-800'}`}>{item.name}</td>
+                        <td className={`px-3 py-2 text-sm border border-slate-300 ${isPku ? 'text-orange-700 font-semibold' : 'text-slate-700'}`}>{item.category}</td>
+                        <td className={`px-3 py-2 text-center text-sm border border-slate-300 ${isPku ? 'text-orange-700 font-semibold' : 'text-slate-800'}`}>{item.quantity}</td>
+                      </tr>
+                    );
+                  })
               ) : (
                 <tr>
                   <td colSpan={3} className="px-3 py-4 text-center text-sm text-slate-400 border border-slate-300">Нет данных</td>
