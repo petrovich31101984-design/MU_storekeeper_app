@@ -1928,20 +1928,23 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                 <>
                   {nomenclature.map((item) => {
                     const totalQty = calculateTotalQuantity(item.id);
+                    // ЛС ПКУ подсвечиваем оранжевым
+                    const isPku = item.category === 'ЛС ПКУ';
+                    const cellBg = isPku ? 'bg-orange-100' : 'bg-white';
 
                     return (
-                      <tr key={item.id} className="group bg-white hover:bg-blue-50 transition-colors">
-                        <td className="px-3 py-2 text-sm text-slate-800 border border-slate-300 sticky left-0 bg-white group-hover:bg-blue-50 z-10" style={{ minWidth: '220px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.name}</td>
-                        <td className="px-3 py-2 text-sm text-slate-700 border border-slate-300 sticky left-[220px] bg-white group-hover:bg-blue-50 z-11" style={{ minWidth: '100px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.unit}</td>
+                      <tr key={item.id} className={`group ${cellBg} hover:bg-blue-50 transition-colors`}>
+                        <td className={`px-3 py-2 text-sm border border-slate-300 sticky left-0 ${cellBg} group-hover:bg-blue-50 z-10 ${isPku ? 'text-orange-700 font-semibold' : 'text-slate-800'}`} style={{ minWidth: '220px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.name}</td>
+                        <td className={`px-3 py-2 text-sm text-slate-700 border border-slate-300 sticky left-[220px] ${cellBg} group-hover:bg-blue-50 z-11`} style={{ minWidth: '100px', boxShadow: 'inset -1px 0 0 0 #cbd5e1, inset 1px 0 0 0 #cbd5e1, 2px 0 4px -1px rgba(0,0,0,0.2)' }}>{item.unit}</td>
                         {allEmployees.map((emp: gs.Employee) => {
                           const balance = calculateBalance(emp.id, item.id);
                           return (
-                            <td key={emp.id} className={`px-3 py-2 text-sm text-left border border-slate-300 group-hover:bg-blue-50 ${balance > 0 ? 'text-slate-800 font-medium bg-white' : balance < 0 ? 'text-red-600 font-medium bg-white' : 'text-slate-400 bg-white'}`} style={{ minWidth: '130px' }}>
+                            <td key={emp.id} className={`px-3 py-2 text-sm text-left border border-slate-300 ${cellBg} group-hover:bg-blue-50 ${balance > 0 ? 'text-slate-800 font-medium' : balance < 0 ? 'text-red-600 font-medium' : 'text-slate-400'}`} style={{ minWidth: '130px' }}>
                               {balance}
                             </td>
                           );
                         })}
-                        <td className={`px-3 py-2 text-sm text-left font-semibold border border-slate-300 bg-slate-50 group-hover:bg-blue-100 sticky right-0 z-11 ${totalQty > 0 ? 'text-slate-800' : totalQty < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
+                        <td className={`px-3 py-2 text-sm text-left font-semibold border border-slate-300 ${isPku ? 'bg-orange-200' : 'bg-slate-50'} group-hover:bg-blue-100 sticky right-0 z-11 ${totalQty > 0 ? 'text-slate-800' : totalQty < 0 ? 'text-red-600' : 'text-slate-400'}`} style={{ minWidth: '110px', boxShadow: 'inset 1px 0 0 0 #cbd5e1, -2px 0 4px -1px rgba(0,0,0,0.2)' }}>
                           {totalQty}
                         </td>
                       </tr>
