@@ -3335,11 +3335,12 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
           <img src={LOGO_URL} alt="СМУ" className="w-10 h-10 rounded-lg object-contain shrink-0" />
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <h1 className="text-sm font-bold whitespace-nowrap tracking-wide"><span className="smu-letter text-[#0202FA]">С</span><span className="smu-letter text-[#FA0202]">М</span><span className="smu-letter text-[#0202FA]">У</span></h1>
-              {/* Линия кардиомонитора над всей подписью «Система медицинского учёта (к) (v.…)» — по её ширине */}
-              <svg className="smu-ecg block w-full" viewBox="0 0 240 20" height="12" preserveAspectRatio="none" aria-hidden="true">
-                <polyline pathLength={100} points="0,10 14,10 18,7 22,10 28,10 31,12 35,1 39,19 42,10 50,10 55,6 60,10 74,10 78,7 82,10 88,10 91,12 95,1 99,19 102,10 110,10 115,6 120,10 134,10 138,7 142,10 148,10 151,12 155,1 159,19 162,10 170,10 175,6 180,10 194,10 198,7 202,10 208,10 211,12 215,1 219,19 222,10 230,10 235,6 240,10" />
-              </svg>
+              <h1 className="text-sm font-bold whitespace-nowrap tracking-wide flex items-center"><span className="smu-letter text-[#0202FA]">С</span><span className="smu-letter text-[#FA0202]">М</span><span className="smu-letter text-[#0202FA]">У</span>
+                {/* Линия кардиомонитора: выходит из «СМУ» и тянется до конца подписи «Система медицинского учёта (к) (v.…)» */}
+                <svg className="smu-ecg flex-1 min-w-0 ml-1" viewBox="0 0 180 20" height="16" preserveAspectRatio="none" aria-hidden="true">
+                  <polyline pathLength={100} points="0,10 14,10 18,7 22,10 28,10 31,12 35,1 39,19 42,10 50,10 55,6 60,10 74,10 78,7 82,10 88,10 91,12 95,1 99,19 102,10 110,10 115,6 120,10 134,10 138,7 142,10 148,10 151,12 155,1 159,19 162,10 170,10 175,6 180,10" />
+                </svg>
+              </h1>
               <p className="text-xs text-slate-500 leading-tight">Система медицинского учёта (к) <span className="text-green-600 font-semibold">(v.{APP_VERSION})</span></p>
             </div>
           )}
