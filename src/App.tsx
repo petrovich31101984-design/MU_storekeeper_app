@@ -3335,7 +3335,12 @@ function MainApp({ user, onLogout, onChangeConnection }: { user: Storekeeper; on
           <img src={LOGO_URL} alt="СМУ" className="w-10 h-10 rounded-lg object-contain shrink-0" />
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <h1 className="text-sm font-bold whitespace-nowrap tracking-wide"><span className="smu-letter text-[#0202FA]">С</span><span className="smu-letter text-[#FA0202]">М</span><span className="smu-letter text-[#0202FA]">У</span></h1>
+              <h1 className="text-sm font-bold whitespace-nowrap tracking-wide flex items-center"><span className="smu-letter text-[#0202FA]">С</span><span className="smu-letter text-[#FA0202]">М</span><span className="smu-letter text-[#0202FA]">У</span>
+                {/* Из букв «выходит» линия кардиомонитора */}
+                <svg className="smu-ecg ml-1" viewBox="0 0 120 20" width="120" height="16" aria-hidden="true">
+                  <polyline pathLength={100} points="0,10 18,10 22,7 26,10 32,10 35,12 39,1 43,19 46,10 54,10 59,6 64,10 72,10 76,7 80,10 86,10 89,12 93,1 97,19 100,10 108,10 113,6 118,10 120,10" />
+                </svg>
+              </h1>
               <p className="text-xs text-slate-500 leading-tight">Система медицинского учёта (к) <span className="text-green-600 font-semibold">(v.{APP_VERSION})</span></p>
             </div>
           )}
