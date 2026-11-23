@@ -1917,7 +1917,8 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                   const initials = parts.slice(1).map((p: string) => p[0] + '.').join('');
                   const formattedName = initials ? `${lastName} ${initials}` : lastName;
                   return (
-                    <th key={emp.id} className="px-3 py-2 text-left text-sm font-semibold text-slate-700 border border-slate-300 bg-slate-100" style={{ minWidth: '130px' }}>
+                    // ФИО мелким шрифтом и в одну строку
+                    <th key={emp.id} title={emp.fullName} className="px-2 py-2 text-left text-xs font-semibold text-slate-700 border border-slate-300 bg-slate-100 whitespace-nowrap" style={{ minWidth: '130px' }}>
                       {formattedName}
                     </th>
                   );
