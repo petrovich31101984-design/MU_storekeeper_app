@@ -3886,11 +3886,11 @@ function Dashboard({ data, onOpenChat, onOpenReturns }: {
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
           <div className="text-2xl font-bold text-blue-600">{data.nomenclature.filter(n => n.category === 'Расходный материал').length}</div>
-          <div className="text-xs text-slate-500 uppercase">Расходных материалов</div>
+          <div className="text-xs text-slate-500 uppercase">Расходные материалы</div>
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
           <div className="text-2xl font-bold text-purple-600">{data.nomenclature.filter(n => n.category === 'Оборудование').length}</div>
-          <div className="text-xs text-slate-500 uppercase">Оборудования</div>
+          <div className="text-xs text-slate-500 uppercase">Оборудование</div>
         </div>
       </div>
 
