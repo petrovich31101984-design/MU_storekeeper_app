@@ -3629,8 +3629,21 @@ function Dashboard({ data, onOpenChat, onOpenReturns }: {
 }) {
   const { returns } = data;
 
-  // Сотрудники оформляют возвраты со статусом «Ожидает подтверждения» (раньше считались только «Новый»)
-  const pendingReturns = returns.filter(gs.isReturnPending).length;
+  // Возвраты, ожидающие подтверждения (сотрудники оформляют их со статусом «Ожидает подтверждения»), новые сверху
+  const pendingReturnsList = returns
+    .filter(gs.isReturnPending)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .map(r => {
+      const d = r.date ? new Date(r.date) : null;
+      return {
+        id: r.id,
+        employee: data.employees.find(e => normId(e.id) === normId(r.employeeId))?.fullName || r.employeeName || 'Сотрудник',
+        item: data.nomenclature.find(n => normId(n.id) === normId(r.nomenclatureId))?.name || r.name || r.nomenclatureId,
+        quantity: `${r.quantity} ${r.unit || ''}`.trim(),
+        reason: r.reason,
+        time: d && !isNaN(d.getTime()) ? d.toLocaleString('ru-RU') : (r.date || ''),
+      };
+    });
 
   const messages = data.chatMessages
     .filter(isIncomingUnreadMessage)
@@ -3679,8 +3692,8 @@ function Dashboard({ data, onOpenChat, onOpenReturns }: {
         </div>
       </div>
 
-      {/* Блок сообщений (уведомления о превышении лимита кладовщику не показываются) */}
-      <div className="grid grid-cols-1 gap-6">
+      {/* Блоки «Сообщения» и «Возвраты» рядом (уведомления о превышении лимита кладовщику не показываются) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Блок сообщений */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm h-96 flex flex-col">
           <div className="p-5 border-b border-slate-200 flex items-center justify-between">
@@ -3723,22 +3736,47 @@ function Dashboard({ data, onOpenChat, onOpenReturns }: {
             )}
           </div>
         </div>
-      </div>
 
-      {pendingReturns > 0 && (
-        <div
-          onClick={onOpenReturns}
-          title="Открыть возвраты"
-          className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:border-orange-300 hover:shadow-md transition-shadow"
-        >
-          <span className="text-2xl">↩️</span>
-          <div className="flex-1">
-            <span className="text-orange-700 font-semibold">Ожидают обработки возвратов:</span>
-            <span className="text-orange-600 ml-2">{pendingReturns}</span>
+        {/* Блок возвратов: ожидающие подтверждения; клик — переход в раздел «Возвраты» */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm h-96 flex flex-col">
+          <div className="p-5 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-800">↩️ Возвраты</h3>
+            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold" title="Ожидают подтверждения">
+              {pendingReturnsList.length}
+            </span>
           </div>
-          <span className="text-orange-600 text-sm font-medium">Открыть →</span>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {pendingReturnsList.length === 0 ? (
+              <div className="text-center text-slate-400 mt-8">
+                <div className="text-3xl mb-2">📦</div>
+                <p>Нет возвратов, ожидающих подтверждения</p>
+              </div>
+            ) : (
+              pendingReturnsList.map(r => (
+                <div
+                  key={r.id}
+                  onClick={onOpenReturns}
+                  title="Открыть раздел «Возвраты»"
+                  className="p-4 rounded-lg border border-orange-200 bg-orange-50 cursor-pointer transition-shadow hover:shadow-md hover:border-orange-300"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                      {r.employee.split(' ').map(n => n[0]).join('').slice(0, 3)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">{r.employee}</p>
+                      <p className="text-sm text-slate-700 mt-1"><span className="font-medium">{r.item}</span> — {r.quantity}</p>
+                      {r.reason && <p className="text-xs text-slate-600 mt-0.5">Причина: {r.reason}</p>}
+                      <p className="text-xs text-slate-500 mt-1">{r.time}</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700 whitespace-nowrap">⏳ Ожидает</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
