@@ -12,17 +12,18 @@
   0% { transform: rotateY(0deg); }
   18%, 100% { transform: rotateY(360deg); }
 }
-/* Линия кардиомонитора справа от «СМУ»: рисуется от букв вправо и стирается следом */
+/* Линия кардиомонитора над подписью в шапке: рисуется слева направо и стирается следом */
 .smu-ecg polyline {
   fill: none;
   stroke: #16a34a;
   stroke-width: 1.6;
+  vector-effect: non-scaling-stroke; /* SVG растянут по ширине подписи — толщина линии не меняется */
   stroke-linejoin: round;
   stroke-linecap: round;
   stroke-dasharray: 100 100;
   stroke-dashoffset: 100;
   filter: drop-shadow(0 0 1.5px rgba(22, 163, 74, 0.7));
-  animation: smu-ecg-sweep 2.4s linear infinite;
+  animation: smu-ecg-sweep 3.2s linear infinite;
 }
 @keyframes smu-ecg-sweep {
   0% { stroke-dashoffset: 100; }
