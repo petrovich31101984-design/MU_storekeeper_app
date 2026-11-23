@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Component, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, Component, Fragment, type ReactNode } from 'react';
 import * as gs from './services/googleSheets';
 import * as api from './api';
 import type { Storekeeper } from './api/types';
@@ -1884,6 +1884,20 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
       return aNumber.localeCompare(bNumber, 'ru', { numeric: true });
     });
 
+  // Номенклатура группами в порядке: ЛС ПКУ, ЛС, расходные материалы, оборудование.
+  // Позиции с другой или пустой категорией — в группе «Прочее» в конце. Пустые группы не показываем.
+  const categoryGroups = [
+    { category: 'ЛС ПКУ', label: 'ЛС ПКУ', style: 'bg-orange-200 text-orange-800' },
+    { category: 'ЛС', label: 'ЛС', style: 'bg-green-100 text-green-800' },
+    { category: 'Расходный материал', label: 'Расходные материалы', style: 'bg-blue-100 text-blue-800' },
+    { category: 'Оборудование', label: 'Оборудование', style: 'bg-purple-100 text-purple-800' },
+  ];
+  const knownCategories = new Set(categoryGroups.map(g => g.category));
+  const balanceGroups = [
+    ...categoryGroups.map(g => ({ ...g, items: nomenclature.filter(n => n.category === g.category) })),
+    { category: '__other', label: 'Прочее', style: 'bg-slate-100 text-slate-700', items: nomenclature.filter(n => !knownCategories.has(n.category)) },
+  ].filter(g => g.items.length > 0);
+
   // Функция для расчёта общего количества по номенклатуре
   const calculateTotalQuantity = (nomenclatureId: string): number => {
     let total = 0;
@@ -1937,7 +1951,16 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                 </tr>
               ) : (
                 <>
-                  {nomenclature.map((item) => {
+                  {balanceGroups.map(group => (
+                  <Fragment key={group.category}>
+                  {/* Заголовок группы: ЛС ПКУ → ЛС → Расходные материалы → Оборудование */}
+                  <tr>
+                    <td colSpan={2} className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide border border-slate-300 sticky left-0 z-10 ${group.style}`} style={{ boxShadow: '2px 0 4px -1px rgba(0,0,0,0.2)' }}>
+                      {group.label} <span className="font-medium normal-case opacity-70">({group.items.length})</span>
+                    </td>
+                    <td colSpan={allEmployees.length + 1} className={`border border-slate-300 ${group.style}`}></td>
+                  </tr>
+                  {group.items.map((item) => {
                     const totalQty = calculateTotalQuantity(item.id);
                     // ЛС ПКУ подсвечиваем оранжевым
                     const isPku = item.category === 'ЛС ПКУ';
@@ -1961,6 +1984,8 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
                       </tr>
                     );
                   })}
+                  </Fragment>
+                  ))}
                 </>
               )}
             </tbody>
