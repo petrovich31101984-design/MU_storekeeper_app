@@ -1872,9 +1872,17 @@ function BalancePage({ data }: { data: ReturnType<typeof useData> }) {
 
   const { balanceEmployees, calculateBalance } = createBalanceCalculator(data);
   // Кладовщиков (и самого вошедшего кладовщика) в остатках не показываем — только выездные сотрудники
-  const allEmployees = balanceEmployees.filter(e =>
-    !/кладовщ/i.test(String(e.position ?? '')) && normId(e.id) !== normId(gs.actor.id)
-  );
+  // Колонки сотрудников — по персональному номеру, как в Google-таблице; без номера — в конце
+  const allEmployees = balanceEmployees
+    .filter(e => !/кладовщ/i.test(String(e.position ?? '')) && normId(e.id) !== normId(gs.actor.id))
+    .sort((a, b) => {
+      const aNumber = String(a.personalNumber ?? '').trim();
+      const bNumber = String(b.personalNumber ?? '').trim();
+      if (!aNumber && !bNumber) return 0;
+      if (!aNumber) return 1;
+      if (!bNumber) return -1;
+      return aNumber.localeCompare(bNumber, 'ru', { numeric: true });
+    });
 
   // Функция для расчёта общего количества по номенклатуре
   const calculateTotalQuantity = (nomenclatureId: string): number => {
