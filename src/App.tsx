@@ -2364,8 +2364,8 @@ function NomenclaturePage({ data }: { data: ReturnType<typeof useData> }) {
           <option value="all">Все категории</option>
           <option value="ЛС ПКУ">💉 ЛС ПКУ</option>
           <option value="ЛС">💊 ЛС</option>
-          <option value="Расходный материал">🩹 Расходных материалов</option>
-          <option value="Оборудование">🩺 Оборудования</option>
+          <option value="Расходный материал">🩹 Расходные материалы</option>
+          <option value="Оборудование">🩺 Оборудование</option>
         </select>
         <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-sm transition-colors">
           + Добавить
@@ -3154,8 +3154,8 @@ function EditNomenclatureModal({
             >
               <option value="ЛС ПКУ">💉 ЛС ПКУ</option>
               <option value="ЛС">💊 ЛС</option>
-              <option value="Расходный материал">🩹 Расходных материалов</option>
-              <option value="Оборудование">🩺 Оборудования</option>
+              <option value="Расходный материал">🩹 Расходные материалы</option>
+              <option value="Оборудование">🩺 Оборудование</option>
             </select>
           </div>
           <div>
@@ -3326,8 +3326,8 @@ function AddNomenclatureModal({
             >
               <option value="ЛС ПКУ">💉 ЛС ПКУ</option>
               <option value="ЛС">💊 ЛС</option>
-              <option value="Расходный материал">🩹 Расходных материалов</option>
-              <option value="Оборудование">🩺 Оборудования</option>
+              <option value="Расходный материал">🩹 Расходные материалы</option>
+              <option value="Оборудование">🩺 Оборудование</option>
             </select>
           </div>
           <div>
