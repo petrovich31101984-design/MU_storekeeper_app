@@ -312,7 +312,7 @@ function SettingsPage({ onChangeConnection }: { onChangeConnection: () => void }
         </div>
       </div>
     </div>
-      <p className="text-center text-xs text-slate-400 mt-auto pt-6">© {new Date().getFullYear()} СМУ • Выездная медицинская помощь • Петрович Е.В.</p>
+      <p className="text-center text-xs text-slate-400 mt-auto pt-6">© {new Date().getFullYear()} СМУ • Система медицинского учёта • Петрович Е.В.</p>
     </div>
   );
 }
